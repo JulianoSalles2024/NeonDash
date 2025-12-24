@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^0.1.0",
+    "@google/genai": "*",
     "@tanstack/react-query": "^5.35.1",
     "framer-motion": "^11.2.6",
     "lucide-react": "^0.378.0",
