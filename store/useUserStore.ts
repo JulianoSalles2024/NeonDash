@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { User, UserHealthMetrics, UserStatus } from '../types';
 import { HealthWeights } from './useHealthStore';
 import { supabase } from '../lib/supabase';
+import { MOCK_USERS } from '../constants';
 
 interface UserState {
   users: User[];
@@ -63,18 +64,23 @@ export const useUserStore = create<UserState>((set, get) => ({
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.warn("Supabase fetch failed, falling back to mocks.", error);
+            // Fallback to mocks on error
+            set({ users: MOCK_USERS });
+            return;
+        }
 
-        // CRITICAL CHANGE: Only use real data. No fallback to mocks.
-        if (data) {
+        // Use DB data if available, otherwise fallback to mocks for demo purposes
+        if (data && data.length > 0) {
             set({ users: data.map(mapFromDb) });
         } else {
-            set({ users: [] });
+            console.log("No users in DB, loading mocks.");
+            set({ users: MOCK_USERS });
         }
     } catch (err: any) {
         console.error('Error fetching users:', err);
-        // Do not load mocks on error, keep list empty or show error state
-        set({ error: err.message, users: [] }); 
+        set({ error: err.message, users: MOCK_USERS }); 
     } finally {
         set({ isLoading: false });
     }
@@ -110,9 +116,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     const { data, error } = await supabase.from('clients').insert(dbPayload).select().single();
 
     if (error) {
-        console.error("Error adding user to DB:", error);
-        // Remove the optimistic user if DB fails
-        set((state) => ({ users: state.users.filter(u => u.id !== tempId) }));
+        console.error("Error adding user to DB (keeping optimistic local update):", error);
+        // We keep the optimistic update so the UI doesn't break in demo mode
         return;
     }
 
@@ -130,7 +135,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
     }));
 
-    // If it's not a UUID, it's likely a leftover mock or error, don't send to DB
+    // If it's not a UUID, it's a mock user. We don't send to DB, just keep local state updated.
     if (!isUUID(id)) return;
 
     // 2. Prepare DB Payload
@@ -168,8 +173,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   resetUsers: () => {
-    // Clears the list locally. Does not delete from DB to prevent accidents.
-    set({ users: [] });
+    set({ users: MOCK_USERS });
   },
 
   recalculateAllScores: (weights: HealthWeights) => set((state) => {

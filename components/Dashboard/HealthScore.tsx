@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { useHealthStore } from '../../store/useHealthStore';
+import { useUserStore } from '../../store/useUserStore';
 import { motion } from 'framer-motion';
 
 interface HealthScoreProps {
@@ -9,8 +9,13 @@ interface HealthScoreProps {
 }
 
 const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
-  const { globalScore } = useHealthStore();
-  const trend = 'up'; // Mock data
+  const { users } = useUserStore();
+  
+  // Calculate REAL average from users
+  const totalScore = users.reduce((acc, user) => acc + (user.healthScore || 0), 0);
+  const globalScore = users.length > 0 ? Math.round(totalScore / users.length) : 0;
+  
+  const trend = 'up'; // Trend logic would require historical snapshots, kept simple for now
 
   return (
     <div 

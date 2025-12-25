@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import { Activity, Zap, MessageSquare, DollarSign, AlertTriangle, RotateCcw, Sliders } from 'lucide-react';
 import { YEARLY_TREND_DATA, COLORS } from '../constants';
@@ -101,12 +101,11 @@ type ChartPeriod = 'day' | 'week' | 'year';
 
 const HealthEngine: React.FC = () => {
     const { addToast } = useToastStore();
-    const { recalculateAllScores } = useUserStore(); // Hook into User Store
+    const { recalculateAllScores, users } = useUserStore();
     
     const { 
         factors, 
         weights, 
-        globalScore, 
         isEditingWeights, 
         toggleEditWeights, 
         setWeight,
@@ -117,6 +116,14 @@ const HealthEngine: React.FC = () => {
     useEffect(() => {
         recalculateAllScores(weights);
     }, [weights, recalculateAllScores]);
+
+    // Calculate Real-time Simulation Global Score
+    // This averages the scores of all users based on current weights
+    const simulatedGlobalScore = useMemo(() => {
+        if (users.length === 0) return 0;
+        const total = users.reduce((acc, u) => acc + u.healthScore, 0);
+        return Math.round(total / users.length);
+    }, [users]);
 
     // State for Chart Tabs
     const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('year');
@@ -238,11 +245,11 @@ const HealthEngine: React.FC = () => {
                         <div className="flex-1 flex flex-col justify-center gap-6">
                             {/* Stats Grid */}
                             <div className="flex flex-col items-center justify-center py-8">
-                                <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Novo Score Global</p>
+                                <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Novo Score Global (Média)</p>
                                 <div className="relative">
                                      <div className="absolute inset-0 bg-neon-cyan/20 blur-xl rounded-full"></div>
                                      <p className="relative text-7xl font-display font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                                        {globalScore}
+                                        {simulatedGlobalScore}
                                      </p>
                                 </div>
                             </div>
@@ -265,7 +272,7 @@ const HealthEngine: React.FC = () => {
                                     <span>
                                         {isEditingWeights 
                                             ? "Qualquer alteração aqui afeta o cálculo do Score de Saúde de TODOS os usuários em tempo real."
-                                            : "O modelo está calibrado. O peso de 'Engajamento' é o maior influenciador atual."}
+                                            : "O modelo está calibrado. Os usuários foram atualizados com base nos pesos atuais."}
                                     </span>
                                 </p>
                             </div>

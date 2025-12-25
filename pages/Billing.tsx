@@ -3,8 +3,21 @@ import Card from '../components/ui/Card';
 import { TOKEN_USAGE_DATA, COLORS } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { CreditCard, Zap, Download } from 'lucide-react';
+import { useAgentStore } from '../store/useAgentStore';
 
 const Billing: React.FC = () => {
+    const { agents } = useAgentStore();
+
+    // Calculate real stats from agents
+    const totalTokens = agents.reduce((acc, a) => acc + a.totalTokens, 0);
+    const totalAgentCost = agents.reduce((acc, a) => acc + a.cost, 0);
+    const basePlanCost = 2500;
+    const totalEstimated = basePlanCost + totalAgentCost;
+    
+    // Usage percentage (Arbitrary quota of 10M tokens for demo)
+    const QUOTA = 10000000;
+    const usagePercentage = Math.min(100, Math.round((totalTokens / QUOTA) * 100));
+
     return (
         <div className="p-8 max-w-[1600px] mx-auto">
              <div className="flex justify-between items-center mb-8">
@@ -55,26 +68,27 @@ const Billing: React.FC = () => {
                         <h3 className="text-sm font-semibold text-gray-400 uppercase mb-4">Estimativa de Custo</h3>
                         <div className="flex justify-between items-center py-3 border-b border-white/5">
                             <span className="text-sm text-gray-300">Base</span>
-                            <span className="text-sm font-mono text-white">R$ 2.500,00</span>
+                            <span className="text-sm font-mono text-white">R$ {basePlanCost.toLocaleString()},00</span>
                         </div>
                         <div className="flex justify-between items-center py-3 border-b border-white/5">
-                            <span className="text-sm text-gray-300">Tokens Extras</span>
-                            <span className="text-sm font-mono text-white">R$ 145,20</span>
+                            <span className="text-sm text-gray-300">Consumo Agentes ({agents.length})</span>
+                            <span className="text-sm font-mono text-white">R$ {totalAgentCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center py-3 mt-2">
                             <span className="text-sm font-bold text-white">Total Estimado</span>
-                            <span className="text-lg font-bold font-mono text-neon-green">R$ 2.645,20</span>
+                            <span className="text-lg font-bold font-mono text-neon-green">R$ {totalEstimated.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                     </div>
 
                     <div className="mt-auto">
                         <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <Zap size={16} className="text-yellow-400" />
-                            <span>Você usou 78% da cota mensal.</span>
+                            <Zap size={16} className={`text-${usagePercentage > 80 ? 'red-500' : 'yellow-400'}`} />
+                            <span>Você usou {usagePercentage}% da cota mensal.</span>
                         </div>
                         <div className="h-1.5 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
-                            <div className="h-full bg-yellow-400" style={{ width: '78%' }}></div>
+                            <div className={`h-full ${usagePercentage > 80 ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${usagePercentage}%` }}></div>
                         </div>
+                        <p className="text-xs text-gray-600 mt-2 text-right">{(totalTokens/1000).toFixed(1)}k / 10M tokens</p>
                     </div>
                 </Card>
             </div>
