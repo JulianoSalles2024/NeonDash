@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HealthScore from '../components/Dashboard/HealthScore';
@@ -22,8 +22,13 @@ const Dashboard: React.FC = () => {
   const { events, isPaused, setIsPaused, clearResolved } = useEventStream();
   
   // Connect to store to get dynamic users
-  const { users } = useUserStore();
+  const { users, fetchUsers, isLoading: isUsersLoading } = useUserStore();
   
+  // Fetch users from Supabase on mount
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
   // CALCULATE METRICS FROM REAL DATA
   const totalUsers = users.length;
   // Calculate MRR (exclude churned users)
@@ -35,12 +40,14 @@ const Dashboard: React.FC = () => {
   // Get global timeframe
   const { timeframe } = useTimeframeStore();
 
-  // Fetch chart history only with React Query (Metrics are overriden by store)
-  const { data, isLoading } = useQuery({
+  // Fetch chart history
+  const { data, isLoading: isMetricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', timeframe],
     queryFn: () => fetchDashboardMetrics(timeframe),
-    refetchInterval: 30000, // Refresh every 30s
+    refetchInterval: 30000, 
   });
+
+  const isLoading = isUsersLoading || isMetricsLoading;
 
   return (
     <PageTransition className="flex flex-col gap-6 p-8 max-w-[1600px] mx-auto pb-20">

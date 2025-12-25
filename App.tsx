@@ -1,15 +1,19 @@
+
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import ProtectedLayout from './components/Layout/ProtectedLayout';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/Users';
+import AgentsPage from './pages/Agents';
+import AgentProfile from './pages/AgentProfile';
 import UserProfile from './pages/UserProfile';
 import FunnelPage from './pages/Funnel';
 import HealthEngine from './pages/HealthEngine';
 import Retention from './pages/Retention';
 import Billing from './pages/Billing';
 import Settings from './pages/Settings';
+import Integrations from './pages/Integrations';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { ToastContainer } from './components/ui/Toast';
@@ -42,8 +46,11 @@ const App: React.FC = () => {
             <Route path="/funnel" element={<FunnelPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:id" element={<UserProfile />} />
+            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/agents/:id" element={<AgentProfile />} />
             <Route path="/retention" element={<Retention />} />
             <Route path="/billing" element={<Billing />} />
+            <Route path="/integrations" element={<Integrations />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 

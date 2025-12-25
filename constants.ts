@@ -1,5 +1,5 @@
 
-import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent } from './types';
+import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog } from './types';
 
 export const MOCK_USERS: User[] = [
   {
@@ -172,6 +172,163 @@ export const MOCK_USERS: User[] = [
   }
 ];
 
+export const MOCK_AGENTS: Agent[] = [
+    {
+        id: '1',
+        name: 'Método',
+        description: 'Define a estratégia e estrutura lógica',
+        status: AgentStatus.ONLINE,
+        model: 'GPT-4o',
+        totalTokens: 1250000,
+        avgLatency: 850,
+        successRate: 99.2,
+        cost: 12.50,
+        lastUsed: 'há 2 min',
+        temperature: 0.3,
+        systemPrompt: "Você é um estrategista de negócios experiente. Seu foco é analisar o problema do usuário e definir uma estrutura lógica passo-a-passo para a solução. Seja metódico, direto e evite jargões desnecessários."
+    },
+    {
+        id: '2',
+        name: 'Persona',
+        description: 'Criação e simulação de avatares',
+        status: AgentStatus.ONLINE,
+        model: 'Claude 3.5 Sonnet',
+        totalTokens: 980000,
+        avgLatency: 1200,
+        successRate: 98.5,
+        cost: 14.70,
+        lastUsed: 'há 15 min',
+        temperature: 0.8,
+        systemPrompt: "Você é um especialista em psicologia do consumidor. Sua tarefa é criar perfis de personas detalhados, incluindo dores, desejos, objeções e linguagem típica. Quando solicitado, simule uma conversa como se fosse a persona."
+    },
+    {
+        id: '3',
+        name: 'Oferta',
+        description: 'Estruturação de promessas e entregáveis',
+        status: AgentStatus.ONLINE,
+        model: 'GPT-4o',
+        totalTokens: 850000,
+        avgLatency: 920,
+        successRate: 97.8,
+        cost: 8.50,
+        lastUsed: 'há 1 hora',
+        temperature: 0.5,
+        systemPrompt: "Você é um copywriter focado em ofertas irresistíveis. Ajude a estruturar a Promessa Única de Valor (UVP), os entregáveis (stack), os bônus e a garantia. Foque em alto valor percebido."
+    },
+    {
+        id: '4',
+        name: 'Funil',
+        description: 'Arquitetura de conversão e etapas',
+        status: AgentStatus.MAINTENANCE,
+        model: 'GPT-3.5 Turbo',
+        totalTokens: 2100000,
+        avgLatency: 450,
+        successRate: 94.1,
+        cost: 4.20,
+        lastUsed: 'há 3 horas',
+        temperature: 0.2,
+        systemPrompt: "Você é um arquiteto de funis de vendas. Desenhe jornadas do cliente desde o tráfego frio até a conversão. Sugira upsells, downsells e order bumps lógicos."
+    },
+    {
+        id: '5',
+        name: 'Planejador de conteúdo',
+        description: 'Calendário editorial e pautas',
+        status: AgentStatus.ONLINE,
+        model: 'Claude 3 Haiku',
+        totalTokens: 1500000,
+        avgLatency: 600,
+        successRate: 99.5,
+        cost: 2.25,
+        lastUsed: 'há 5 min',
+        temperature: 0.6,
+        systemPrompt: "Você é um gerente de mídia social. Crie calendários editoriais que misturam conteúdo educacional, de entretenimento e de vendas. Mantenha a consistência da voz da marca."
+    },
+    {
+        id: '6',
+        name: 'Gerador de conteúdo',
+        description: 'Escrita de posts, blogs e scripts',
+        status: AgentStatus.ONLINE,
+        model: 'GPT-4o',
+        totalTokens: 4500000,
+        avgLatency: 2100,
+        successRate: 96.0,
+        cost: 45.00,
+        lastUsed: 'Agora',
+        temperature: 0.7,
+        systemPrompt: "Você é um redator criativo e versátil. Escreva textos engajadores para blogs, legendas de Instagram e roteiros de YouTube. Adapte o tom de voz conforme solicitado."
+    },
+    {
+        id: '7',
+        name: 'Ganchos',
+        description: 'Criação de headlines de alta conversão',
+        status: AgentStatus.ONLINE,
+        model: 'GPT-4o',
+        totalTokens: 320000,
+        avgLatency: 500,
+        successRate: 98.9,
+        cost: 3.20,
+        lastUsed: 'há 45 min',
+        temperature: 0.9,
+        systemPrompt: "Você é um especialista em atenção. Sua única função é criar 'Hooks' (ganchos) e Headlines impossíveis de ignorar. Use curiosidade, polêmica, promessa ou identificação."
+    },
+    {
+        id: '8',
+        name: 'Copy ADS',
+        description: 'Textos persuasivos para tráfego pago',
+        status: AgentStatus.ONLINE,
+        model: 'Claude 3.5 Sonnet',
+        totalTokens: 670000,
+        avgLatency: 1100,
+        successRate: 97.5,
+        cost: 10.05,
+        lastUsed: 'há 2 horas',
+        temperature: 0.6,
+        systemPrompt: "Você é um especialista em anúncios pagos (Meta Ads, Google Ads). Escreva copies curtas e diretas focadas em CTR (Click-Through Rate). Siga frameworks como AIDA ou PAS."
+    },
+    {
+        id: '9',
+        name: 'Conteúdos virais',
+        description: 'Análise de tendências e adaptação',
+        status: AgentStatus.TRAINING,
+        model: 'GPT-4o',
+        totalTokens: 2500000,
+        avgLatency: 3500,
+        successRate: 88.0,
+        cost: 25.00,
+        lastUsed: 'há 1 dia',
+        temperature: 1.0,
+        systemPrompt: "Você é um analista de tendências digitais. Identifique padrões em vídeos virais e sugira adaptações para o nicho do usuário. Pense fora da caixa."
+    },
+    {
+        id: '10',
+        name: 'Closer Digital',
+        description: 'Script de vendas e quebra de objeções',
+        status: AgentStatus.ONLINE,
+        model: 'GPT-4o',
+        totalTokens: 1100000,
+        avgLatency: 950,
+        successRate: 95.5,
+        cost: 11.00,
+        lastUsed: 'há 10 min',
+        temperature: 0.4,
+        systemPrompt: "Você é um vendedor experiente. Seu objetivo é fechar vendas. Forneça scripts para lidar com objeções comuns como 'está caro', 'vou pensar' ou 'preciso falar com meu sócio'."
+    },
+    {
+        id: '11',
+        name: 'Copy Follow-up',
+        description: 'Sequência de emails e mensagens de recuperação',
+        status: AgentStatus.OFFLINE,
+        model: 'GPT-3.5 Turbo',
+        totalTokens: 50000,
+        avgLatency: 400,
+        successRate: 99.0,
+        cost: 0.10,
+        lastUsed: 'há 5 dias',
+        temperature: 0.5,
+        systemPrompt: "Você é um especialista em email marketing e recuperação de vendas. Escreva sequências de follow-up que sejam persistentes mas não irritantes. Foque em reengajar leads frios."
+    }
+];
+
 export const MOCK_INSIGHTS: AIInsight[] = [
   {
     id: '1',
@@ -280,6 +437,69 @@ export const MOCK_CRITICAL_STREAM = [
     source: 'Analytics',
     action: 'Ver Dashboard'
   }
+];
+
+export const MOCK_AGENT_LOGS: AgentLog[] = [
+    {
+        id: 'log-1',
+        agentId: '1',
+        timestamp: '14:32:05',
+        input: 'Crie um título viral para um post sobre IA no LinkedIn.',
+        output: '🚀 "A IA não vai te substituir, mas quem usa IA vai." Descubra como...',
+        tokens: 450,
+        latency: 820,
+        cost: 0.04,
+        status: 'success',
+        model: 'GPT-4o'
+    },
+    {
+        id: 'log-2',
+        agentId: '1',
+        timestamp: '14:31:10',
+        input: 'Resuma o seguinte texto técnico: [TEXTO_LONGO]',
+        output: 'O texto descreve a arquitetura de microsserviços...',
+        tokens: 1250,
+        latency: 1400,
+        cost: 0.12,
+        status: 'success',
+        model: 'GPT-4o'
+    },
+    {
+        id: 'log-3',
+        agentId: '1',
+        timestamp: '14:28:45',
+        input: 'Gere uma imagem de um gato voando.',
+        output: 'Desculpe, eu sou um modelo de texto e não posso gerar imagens.',
+        tokens: 120,
+        latency: 450,
+        cost: 0.01,
+        status: 'error',
+        model: 'GPT-4o'
+    },
+    {
+        id: 'log-4',
+        agentId: '1',
+        timestamp: '14:25:00',
+        input: 'Traduza para francês: "Hello world"',
+        output: 'Bonjour le monde',
+        tokens: 30,
+        latency: 300,
+        cost: 0.005,
+        status: 'success',
+        model: 'GPT-4o'
+    },
+    {
+        id: 'log-5',
+        agentId: '1',
+        timestamp: '14:20:12',
+        input: 'Analise o sentimento deste review: "O produto é horrível!"',
+        output: '{"sentiment": "negative", "score": 0.98}',
+        tokens: 85,
+        latency: 550,
+        cost: 0.01,
+        status: 'success',
+        model: 'GPT-4o'
+    }
 ];
 
 export const ARR_DATA: ChartDataPoint[] = [

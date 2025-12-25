@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   LayoutDashboard, 
@@ -10,7 +11,9 @@ import {
   LogOut,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Bot,
+  Network
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUIStore } from '../../store/useUIStore';
@@ -117,12 +120,14 @@ const Sidebar: React.FC = () => {
           <div className="mb-6">
             <SectionTitle label="Crescimento" collapsed={isSidebarCollapsed} />
             <NavItem icon={Users} label="Usuários" to="/users" active={location.pathname === '/users'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            <NavItem icon={Bot} label="Agentes" to="/agents" active={location.pathname === '/agents'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
             <NavItem icon={PieChart} label="Retenção" to="/retention" active={location.pathname === '/retention'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
             <NavItem icon={CreditCard} label="Créditos e Fatura" to="/billing" active={location.pathname === '/billing'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
           </div>
 
           <div>
             <SectionTitle label="Sistema" collapsed={isSidebarCollapsed} />
+            <NavItem icon={Network} label="Integrações" to="/integrations" active={location.pathname === '/integrations'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
             <NavItem icon={Settings} label="Configurações" to="/settings" active={location.pathname === '/settings'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
           </div>
         </nav>

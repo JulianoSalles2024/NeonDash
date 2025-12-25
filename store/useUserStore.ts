@@ -1,79 +1,188 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { User, UserHealthMetrics } from '../types';
+import { User, UserHealthMetrics, UserStatus } from '../types';
 import { MOCK_USERS } from '../constants';
 import { HealthWeights } from './useHealthStore';
+import { supabase } from '../lib/supabase';
 
 interface UserState {
   users: User[];
-  addUser: (user: User) => void;
-  updateUser: (id: string, data: Partial<User>) => void;
-  deleteUser: (id: string) => void;
-  resetUsers: () => void;
+  isLoading: boolean;
+  error: string | null;
+  
+  fetchUsers: () => Promise<void>;
+  addUser: (user: Partial<User>) => Promise<void>;
+  updateUser: (id: string, data: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  
+  // Local actions (Calculation engine)
   recalculateAllScores: (weights: HealthWeights) => void;
+  resetUsers: () => void;
 }
 
-// Helper to handle legacy data or missing metrics
-const ensureMetrics = (user: User): UserHealthMetrics => {
-  if (user.metrics) return user.metrics;
+// Helper: Ensure Metrics exist
+const ensureMetrics = (metrics: any, baseScore: number): UserHealthMetrics => {
+  if (metrics && typeof metrics === 'object') return metrics as UserHealthMetrics;
   
-  // Backward compatibility: Generate plausible metrics if missing based on the old hardcoded score
-  const base = user.healthScore || 50;
+  // Default metrics if missing
   return {
-    engagement: Math.min(100, Math.max(0, base + (Math.random() * 20 - 10))),
-    support: Math.min(100, Math.max(0, base + (Math.random() * 20 - 10))),
-    finance: Math.min(100, Math.max(0, base + (Math.random() * 20 - 10))),
-    risk: Math.min(100, Math.max(0, base + (Math.random() * 20 - 10))),
+    engagement: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
+    support: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
+    finance: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
+    risk: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
   };
 };
 
-export const useUserStore = create<UserState>()(
-  persist(
-    (set) => ({
-      users: MOCK_USERS, // Initialize with mock data (only used if storage is empty)
-      
-      addUser: (user) => set((state) => ({ 
-        users: [user, ...state.users] 
-      })),
-      
-      updateUser: (id, data) => set((state) => ({
-        users: state.users.map((u) => u.id === id ? { ...u, ...data } : u)
-      })),
-      
-      deleteUser: (id) => set((state) => ({
-        users: state.users.filter((u) => u.id !== id)
-      })),
+// Helper: Map Supabase snake_case to Frontend camelCase
+const mapFromDb = (dbUser: any): User => ({
+    id: dbUser.id,
+    name: dbUser.name,
+    company: dbUser.company,
+    email: dbUser.email,
+    avatar: dbUser.avatar || `https://ui-avatars.com/api/?name=${dbUser.name}&background=random`,
+    status: dbUser.status as UserStatus,
+    plan: dbUser.plan,
+    lastActive: dbUser.last_active || 'Desconhecido',
+    healthScore: dbUser.health_score ?? 50,
+    mrr: dbUser.mrr ?? 0,
+    tokensUsed: dbUser.tokens_used ?? 0,
+    metrics: ensureMetrics(dbUser.metrics, dbUser.health_score ?? 50)
+});
 
-      resetUsers: () => set({ users: MOCK_USERS }),
+export const useUserStore = create<UserState>((set, get) => ({
+  users: [], // Start empty, fetch on mount
+  isLoading: false,
+  error: null,
 
-      recalculateAllScores: (weights: HealthWeights) => set((state) => {
-        const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
-        
-        const updatedUsers = state.users.map(user => {
-            const metrics = ensureMetrics(user);
-            
-            let calculatedScore = 0;
-            if (totalWeight > 0) {
-                 calculatedScore = (
-                    (metrics.engagement * weights.engagement) +
-                    (metrics.support * weights.support) +
-                    (metrics.finance * weights.finance) +
-                    (metrics.risk * weights.risk)
-                ) / totalWeight;
-            }
+  fetchUsers: async () => {
+    set({ isLoading: true, error: null });
+    try {
+        const { data, error } = await supabase
+            .from('clients')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-            return {
-                ...user,
-                metrics: metrics, // Ensure metrics are saved back if they were generated
-                healthScore: Math.round(calculatedScore)
-            };
-        });
+        if (error) throw error;
 
-        return { users: updatedUsers };
-      })
-    }),
-    {
-      name: 'neondash-users-storage', // unique name in localStorage
+        if (data && data.length > 0) {
+            set({ users: data.map(mapFromDb) });
+        } else {
+            console.log("Supabase empty, using Mocks for visual demo");
+            set({ users: MOCK_USERS });
+        }
+    } catch (err: any) {
+        console.error('Error fetching users:', err);
+        // Fallback to mocks on error to keep the UI functional
+        set({ error: err.message, users: MOCK_USERS }); 
+    } finally {
+        set({ isLoading: false });
     }
-  )
-);
+  },
+
+  addUser: async (userData) => {
+    // Optimistic Update (Temporary ID)
+    const tempId = Date.now().toString();
+    const newUser = { 
+        ...userData, 
+        id: tempId,
+        metrics: userData.metrics || ensureMetrics(null, userData.healthScore || 100),
+        lastActive: 'Agora',
+        tokensUsed: 0
+    } as User;
+
+    set((state) => ({ users: [newUser, ...state.users] }));
+
+    // Map to DB format
+    const dbPayload = {
+        name: userData.name,
+        company: userData.company,
+        email: userData.email,
+        status: userData.status,
+        plan: userData.plan,
+        mrr: userData.mrr,
+        health_score: userData.healthScore || 100,
+        tokens_used: 0,
+        last_active: 'Agora',
+        metrics: newUser.metrics
+    };
+
+    const { data, error } = await supabase.from('clients').insert(dbPayload).select().single();
+
+    if (error) {
+        console.error("Error adding user to DB:", error);
+        // Optional: Rollback state here if strict consistency is needed
+        return;
+    }
+
+    // Replace optimistic user with real DB user (correct UUID)
+    if (data) {
+        set((state) => ({
+            users: state.users.map(u => u.id === tempId ? mapFromDb(data) : u)
+        }));
+    }
+  },
+
+  updateUser: async (id, changes) => {
+    // 1. Optimistic Update
+    set((state) => ({
+        users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
+    }));
+
+    // 2. Prepare DB Payload
+    const dbPayload: any = {};
+    if (changes.name) dbPayload.name = changes.name;
+    if (changes.company) dbPayload.company = changes.company;
+    if (changes.email) dbPayload.email = changes.email;
+    if (changes.status) dbPayload.status = changes.status;
+    if (changes.plan) dbPayload.plan = changes.plan;
+    if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
+    if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
+    if (changes.metrics) dbPayload.metrics = changes.metrics;
+    // Note: lastActive and tokensUsed generally updated by system events, but can be here too if needed
+
+    // 3. Send to DB
+    const { error } = await supabase.from('clients').update(dbPayload).eq('id', id);
+    
+    if (error) {
+        console.error("Error updating user:", error);
+    }
+  },
+
+  deleteUser: async (id) => {
+    // Optimistic Delete
+    set((state) => ({ users: state.users.filter((u) => u.id !== id) }));
+    
+    const { error } = await supabase.from('clients').delete().eq('id', id);
+    if (error) console.error("Error deleting user:", error);
+  },
+
+  resetUsers: () => {
+    set({ users: MOCK_USERS });
+    // Note: We don't wipe the DB here to prevent accidental massive data loss via a simple UI button
+  },
+
+  recalculateAllScores: (weights: HealthWeights) => set((state) => {
+    const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+    
+    const updatedUsers = state.users.map(user => {
+        const metrics = ensureMetrics(user.metrics, user.healthScore);
+        
+        let calculatedScore = 0;
+        if (totalWeight > 0) {
+             calculatedScore = (
+                (metrics.engagement * weights.engagement) +
+                (metrics.support * weights.support) +
+                (metrics.finance * weights.finance) +
+                (metrics.risk * weights.risk)
+            ) / totalWeight;
+        }
+
+        return {
+            ...user,
+            metrics: metrics,
+            healthScore: Math.round(calculatedScore)
+        };
+    });
+
+    return { users: updatedUsers };
+  })
+}));

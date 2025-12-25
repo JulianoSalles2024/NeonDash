@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -40,6 +40,20 @@ const UsersPage: React.FC = () => {
       status: UserStatus.NEW,
       mrr: 0
   });
+
+  // --- KPI CALCULATIONS ---
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.status === UserStatus.ACTIVE).length;
+  const riskUsers = users.filter(u => u.status === UserStatus.RISK).length;
+  
+  // Calculate Average Engagement
+  const avgEngagement = Math.round(
+    users.reduce((acc, u) => acc + (u.metrics?.engagement || 0), 0) / (totalUsers || 1)
+  );
+
+  // Calculate ARPU (Average Revenue Per User) - "Média Planos"
+  const totalMRR = users.reduce((acc, u) => acc + u.mrr, 0);
+  const arpu = totalUsers > 0 ? totalMRR / totalUsers : 0;
 
   // --- LOGIC: Filtering & Sorting ---
 
@@ -222,6 +236,47 @@ const UsersPage: React.FC = () => {
                 <h1 className="text-3xl font-bold font-display text-white">Usuários</h1>
                 <p className="text-sm text-gray-500 mt-1">Gerencie o acesso, planos e saúde da base de clientes.</p>
             </div>
+        </div>
+
+        {/* --- KPI CARDS SECTION --- */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Card className="flex items-center gap-4 border-neon-blue/20 bg-neon-blue/5">
+                <div className="p-3 rounded-lg bg-neon-blue/10 text-neon-blue"><Users size={24}/></div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase">Total Usuários</p>
+                    <p className="text-2xl font-bold text-white">
+                        {totalUsers} <span className="text-sm font-normal text-gray-500">({activeUsers} ativos)</span>
+                    </p>
+                </div>
+            </Card>
+            
+            <Card className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-white/5 text-neon-purple"><CreditCard size={24}/></div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase">Ticket Médio</p>
+                    <p className="text-2xl font-bold text-white">R$ {arpu.toFixed(0)}</p>
+                </div>
+            </Card>
+
+            <Card className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-white/5 text-neon-green"><Zap size={24}/></div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase">Engajamento Médio</p>
+                    <p className="text-2xl font-bold text-white">{avgEngagement}%</p>
+                </div>
+            </Card>
+
+            <Card className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-white/5 text-neon-pink"><AlertTriangle size={24}/></div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase">Em Risco</p>
+                    <p className="text-2xl font-bold text-white">{riskUsers}</p>
+                </div>
+            </Card>
+        </div>
+
+        {/* --- ACTIONS & SEARCH --- */}
+        <div className="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
             <div className="flex flex-wrap gap-3 w-full md:w-auto">
                 <div className="relative group grow md:grow-0">
                     <Search className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-neon-cyan transition-colors" size={16} />

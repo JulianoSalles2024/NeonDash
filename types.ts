@@ -6,6 +6,13 @@ export enum UserStatus {
     NEW = 'Novo',
     GHOST = 'Fantasma'
   }
+
+  export enum AgentStatus {
+    ONLINE = 'Online',
+    MAINTENANCE = 'Manutenção',
+    OFFLINE = 'Offline',
+    TRAINING = 'Treinando'
+  }
   
   export interface MetricTrend {
     value: number;
@@ -34,6 +41,43 @@ export enum UserStatus {
     plan: 'Starter' | 'Pro' | 'Enterprise'; 
     tokensUsed: number;
     mrr: number;
+  }
+
+  export interface AgentVersion {
+    version: string;
+    createdAt: string;
+    model: string;
+    changeLog: string;
+    status: 'active' | 'archived';
+  }
+
+  export interface Agent {
+    id: string;
+    name: string;
+    description: string;
+    status: AgentStatus;
+    model: string; // e.g. GPT-4o, Claude 3.5
+    totalTokens: number;
+    avgLatency: number; // in ms
+    successRate: number; // percentage
+    cost: number; // estimated cost
+    lastUsed: string;
+    versions?: AgentVersion[]; // Optional history
+    systemPrompt?: string; // The "Brain" instructions
+    temperature?: number; // Creativity (0-1)
+  }
+
+  export interface AgentLog {
+    id: string;
+    agentId: string;
+    timestamp: string;
+    input: string;
+    output: string;
+    tokens: number;
+    latency: number;
+    cost: number;
+    status: 'success' | 'error' | 'timeout';
+    model: string;
   }
   
   export interface AIInsight {
