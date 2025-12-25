@@ -1,5 +1,31 @@
 import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog, StreamEvent } from './types';
 
+// --- MODEL PRICING REGISTRY (USD per 1M tokens) ---
+// Prices are estimated/current as of late 2024/early 2025
+export const MODEL_REGISTRY: Record<string, { provider: string, inputPrice: number, outputPrice: number, label: string }> = {
+    // OPENAI
+    'gpt-4o': { provider: 'OpenAI', inputPrice: 2.50, outputPrice: 10.00, label: 'GPT-4o' },
+    'gpt-4o-mini': { provider: 'OpenAI', inputPrice: 0.15, outputPrice: 0.60, label: 'GPT-4o Mini' },
+    'o1-preview': { provider: 'OpenAI', inputPrice: 15.00, outputPrice: 60.00, label: 'o1 Preview (Thinking)' },
+    'o1-mini': { provider: 'OpenAI', inputPrice: 3.00, outputPrice: 12.00, label: 'o1 Mini' },
+    'gpt-3.5-turbo': { provider: 'OpenAI', inputPrice: 0.50, outputPrice: 1.50, label: 'GPT-3.5 Turbo' },
+
+    // ANTHROPIC
+    'claude-3-5-sonnet': { provider: 'Anthropic', inputPrice: 3.00, outputPrice: 15.00, label: 'Claude 3.5 Sonnet' },
+    'claude-3-opus': { provider: 'Anthropic', inputPrice: 15.00, outputPrice: 75.00, label: 'Claude 3 Opus' },
+    'claude-3-haiku': { provider: 'Anthropic', inputPrice: 0.25, outputPrice: 1.25, label: 'Claude 3 Haiku' },
+
+    // GOOGLE
+    'gemini-1.5-pro': { provider: 'Google', inputPrice: 1.25, outputPrice: 5.00, label: 'Gemini 1.5 Pro' },
+    'gemini-1.5-flash': { provider: 'Google', inputPrice: 0.075, outputPrice: 0.30, label: 'Gemini 1.5 Flash' },
+    'gemini-1.0-pro': { provider: 'Google', inputPrice: 0.50, outputPrice: 1.50, label: 'Gemini 1.0 Pro' },
+
+    // OTHERS / SPECIALIZED
+    'mistral-large': { provider: 'Mistral', inputPrice: 2.00, outputPrice: 6.00, label: 'Mistral Large 2' },
+    'manus-1': { provider: 'Manus', inputPrice: 5.00, outputPrice: 15.00, label: 'Manus Agentic v1' }, // Estimativa
+    'llama-3.1-405b': { provider: 'Meta (Hosted)', inputPrice: 3.00, outputPrice: 3.00, label: 'Llama 3.1 405B' },
+};
+
 export const MOCK_USERS: User[] = [
   {
     id: '1',
@@ -177,7 +203,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Método',
         description: 'Define a estratégia e estrutura lógica',
         status: AgentStatus.ONLINE,
-        model: 'GPT-4o',
+        model: 'gpt-4o',
         totalTokens: 1250000,
         avgLatency: 850,
         successRate: 99.2,
@@ -191,7 +217,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Persona',
         description: 'Criação e simulação de avatares',
         status: AgentStatus.ONLINE,
-        model: 'Claude 3.5 Sonnet',
+        model: 'claude-3-5-sonnet',
         totalTokens: 980000,
         avgLatency: 1200,
         successRate: 98.5,
@@ -205,7 +231,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Oferta',
         description: 'Estruturação de promessas e entregáveis',
         status: AgentStatus.ONLINE,
-        model: 'GPT-4o',
+        model: 'gpt-4o',
         totalTokens: 850000,
         avgLatency: 920,
         successRate: 97.8,
@@ -219,7 +245,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Funil',
         description: 'Arquitetura de conversão e etapas',
         status: AgentStatus.MAINTENANCE,
-        model: 'GPT-3.5 Turbo',
+        model: 'gpt-3.5-turbo',
         totalTokens: 2100000,
         avgLatency: 450,
         successRate: 94.1,
@@ -233,7 +259,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Planejador de conteúdo',
         description: 'Calendário editorial e pautas',
         status: AgentStatus.ONLINE,
-        model: 'Claude 3 Haiku',
+        model: 'claude-3-haiku',
         totalTokens: 1500000,
         avgLatency: 600,
         successRate: 99.5,
@@ -247,11 +273,11 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Gerador de conteúdo',
         description: 'Escrita de posts, blogs e scripts',
         status: AgentStatus.ONLINE,
-        model: 'GPT-4o',
+        model: 'gemini-1.5-pro',
         totalTokens: 4500000,
         avgLatency: 2100,
         successRate: 96.0,
-        cost: 45.00,
+        cost: 28.00,
         lastUsed: 'Agora',
         temperature: 0.7,
         systemPrompt: "Você é um redator criativo e versátil. Escreva textos engajadores para blogs, legendas de Instagram e roteiros de YouTube. Adapte o tom de voz conforme solicitado."
@@ -261,7 +287,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Ganchos',
         description: 'Criação de headlines de alta conversão',
         status: AgentStatus.ONLINE,
-        model: 'GPT-4o',
+        model: 'gpt-4o-mini',
         totalTokens: 320000,
         avgLatency: 500,
         successRate: 98.9,
@@ -275,7 +301,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Copy ADS',
         description: 'Textos persuasivos para tráfego pago',
         status: AgentStatus.ONLINE,
-        model: 'Claude 3.5 Sonnet',
+        model: 'claude-3-5-sonnet',
         totalTokens: 670000,
         avgLatency: 1100,
         successRate: 97.5,
@@ -289,7 +315,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Conteúdos virais',
         description: 'Análise de tendências e adaptação',
         status: AgentStatus.TRAINING,
-        model: 'GPT-4o',
+        model: 'manus-1',
         totalTokens: 2500000,
         avgLatency: 3500,
         successRate: 88.0,
@@ -303,7 +329,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Closer Digital',
         description: 'Script de vendas e quebra de objeções',
         status: AgentStatus.ONLINE,
-        model: 'GPT-4o',
+        model: 'mistral-large',
         totalTokens: 1100000,
         avgLatency: 950,
         successRate: 95.5,
@@ -311,20 +337,6 @@ export const MOCK_AGENTS: Agent[] = [
         lastUsed: 'há 10 min',
         temperature: 0.4,
         systemPrompt: "Você é um vendedor experiente. Seu objetivo é fechar vendas. Forneça scripts para lidar com objeções comuns como 'está caro', 'vou pensar' ou 'preciso falar com meu sócio'."
-    },
-    {
-        id: '11',
-        name: 'Copy Follow-up',
-        description: 'Sequência de emails e mensagens de recuperação',
-        status: AgentStatus.OFFLINE,
-        model: 'GPT-3.5 Turbo',
-        totalTokens: 50000,
-        avgLatency: 400,
-        successRate: 99.0,
-        cost: 0.10,
-        lastUsed: 'há 5 dias',
-        temperature: 0.5,
-        systemPrompt: "Você é um especialista em email marketing e recuperação de vendas. Escreva sequências de follow-up que sejam persistentes mas não irritantes. Foque em reengajar leads frios."
     }
 ];
 

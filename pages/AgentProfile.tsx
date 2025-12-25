@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bot, Zap, Activity, Coins, Clock, AlertTriangle, Terminal, GitBranch, Play, Settings, Cpu, ScrollText, Check, X, Sliders, Gamepad2 } from 'lucide-react';
+import { ArrowLeft, Bot, Zap, Activity, Coins, Clock, AlertTriangle, Terminal, GitBranch, Play, Settings, Cpu, ScrollText, Check, X, Sliders, Gamepad2, ArrowDown, Tag } from 'lucide-react';
 import Card from '../components/ui/Card';
 import { AgentStatus, AgentVersion, Agent } from '../types';
 import { useAgentStore } from '../store/useAgentStore';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, CartesianGrid, XAxis, YAxis, BarChart, Bar, Cell } from 'recharts';
-import { COLORS } from '../constants';
+import { COLORS, MODEL_REGISTRY } from '../constants';
 import AgentPlayground from '../components/Agents/AgentPlayground';
 import AgentLogs from '../components/Agents/AgentLogs';
 import { useToastStore } from '../store/useToastStore';
@@ -46,6 +46,21 @@ const AgentProfile: React.FC = () => {
         }
     };
 
+    // Group models by provider for select
+    const groupedModels = useMemo(() => {
+        type ModelEntry = typeof MODEL_REGISTRY[string] & { id: string };
+        const groups: Record<string, ModelEntry[]> = {};
+        Object.entries(MODEL_REGISTRY).forEach(([key, value]) => {
+            const entry = { ...value, id: key };
+            if (!groups[value.provider]) groups[value.provider] = [];
+            groups[value.provider].push(entry);
+        });
+        return groups;
+    }, []);
+
+    // Get current selected model pricing info in config form
+    const selectedModelInfo = MODEL_REGISTRY[configForm.model || 'gpt-4o'];
+
     if (!agent) {
         return (
             <div className="p-8 flex flex-col items-center justify-center h-full text-gray-500">
@@ -79,7 +94,7 @@ const AgentProfile: React.FC = () => {
     const MOCK_VERSIONS: AgentVersion[] = [
         { version: 'v1.2.0', createdAt: 'Hoje, 14:30', model: agent.model, changeLog: 'Ajuste de temperatura para 0.7 e novo prompt de sistema.', status: 'active' },
         { version: 'v1.1.5', createdAt: 'Ontem, 09:15', model: agent.model, changeLog: 'Correção no output JSON.', status: 'archived' },
-        { version: 'v1.0.0', createdAt: '3 dias atrás', model: 'GPT-3.5 Turbo', changeLog: 'Versão inicial.', status: 'archived' },
+        { version: 'v1.0.0', createdAt: '3 dias atrás', model: 'gpt-3.5-turbo', changeLog: 'Versão inicial.', status: 'archived' },
     ];
 
     const getStatusBadge = (status: AgentStatus) => {
@@ -115,16 +130,35 @@ const AgentProfile: React.FC = () => {
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Modelo Base</label>
-                                    <select 
-                                        value={configForm.model} 
-                                        onChange={(e) => setConfigForm({...configForm, model: e.target.value})}
-                                        className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg"
-                                    >
-                                        <option value="GPT-4o">GPT-4o</option>
-                                        <option value="GPT-3.5 Turbo">GPT-3.5 Turbo</option>
-                                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                                        <option value="Claude 3 Haiku">Claude 3 Haiku</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select 
+                                            value={configForm.model} 
+                                            onChange={(e) => setConfigForm({...configForm, model: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg appearance-none pr-8"
+                                        >
+                                            {Object.entries(groupedModels).map(([provider, models]) => (
+                                                <optgroup key={provider} label={provider} className="text-gray-500 font-bold bg-dark-bg">
+                                                    {models.map(m => (
+                                                        <option key={m.id} value={m.id} className="text-white bg-dark-bg">
+                                                            {m.label}
+                                                        </option>
+                                                    ))}
+                                                </optgroup>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500"><ArrowDown size={14} /></div>
+                                    </div>
+                                    
+                                    {/* Pricing Display */}
+                                    {selectedModelInfo && (
+                                        <div className="mt-2 text-[10px] text-gray-400 flex items-center justify-between px-1">
+                                            <span>{selectedModelInfo.provider}</span>
+                                            <span className="font-mono">
+                                                IN: <span className="text-neon-cyan">${selectedModelInfo.inputPrice.toFixed(2)}</span> / 
+                                                OUT: <span className="text-neon-purple">${selectedModelInfo.outputPrice.toFixed(2)}</span>
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -198,7 +232,7 @@ const AgentProfile: React.FC = () => {
                             <p className="text-gray-400 text-xs">{agent.description}</p>
                             <div className="flex items-center gap-3 mt-1.5 text-[10px] font-mono text-gray-500">
                                 <span className="flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
-                                    <Terminal size={10} /> {agent.model}
+                                    <Terminal size={10} /> {MODEL_REGISTRY[agent.model]?.label || agent.model}
                                 </span>
                                 <span className="flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
                                     <Clock size={10} /> Último uso: {agent.lastUsed}

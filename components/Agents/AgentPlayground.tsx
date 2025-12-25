@@ -3,6 +3,7 @@ import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins } from 'lucide-react';
 import { Agent } from '../../types';
 import { generateAgentChat } from '../../services/ai';
 import { useToastStore } from '../../store/useToastStore';
+import { MODEL_REGISTRY } from '../../constants';
 
 interface AgentPlaygroundProps {
     agent: Agent;
@@ -54,18 +55,20 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Calculate estimated cost (Mock pricing logic based on model tier)
-            // Pro models ~ $10/1M tokens, Flash models ~ $0.35/1M tokens
-            const isPro = agent.model.includes('GPT-4') || agent.model.includes('Sonnet');
-            const costPerToken = isPro ? 0.00001 : 0.00000035;
-            const cost = response.usage.totalTokens * costPerToken;
+            // Calculate estimated cost automatically based on Registry
+            // 1M Tokens divisor
+            const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 }; // Default fallback
+            
+            const inputCost = (response.usage.promptTokens / 1000000) * pricing.inputPrice;
+            const outputCost = (response.usage.responseTokens / 1000000) * pricing.outputPrice;
+            const totalCost = inputCost + outputCost;
 
             setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
             
             setMetrics({
                 latency,
                 tokens: response.usage.totalTokens,
-                cost
+                cost: totalCost
             });
 
         } catch (error) {
@@ -75,8 +78,6 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 title: 'Erro de Execução',
                 message: 'Falha ao obter resposta da IA. Verifique sua conexão ou API Key.'
             });
-            // Remove the user message if it failed, or add an error message? 
-            // Let's add an error message to the chat for visibility
             setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ Erro: Não foi possível processar sua solicitação." }]);
         } finally {
             setIsLoading(false);
@@ -95,7 +96,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                     <div>
                         <h3 className="text-lg font-bold text-white font-display">Simulador em Tempo Real</h3>
                         <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
-                            {agent.model} • Temp: {agent.temperature || 0.7}
+                            {MODEL_REGISTRY[agent.model]?.label || agent.model} • Temp: {agent.temperature || 0.7}
                             <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold">
                                 LIVE API
                             </span>
@@ -163,7 +164,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                                 <Zap size={12} /> {metrics.latency}ms
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-green/10 border border-neon-green/30 rounded-lg text-xs text-neon-green font-mono backdrop-blur-md">
-                                <Coins size={12} /> ${metrics.cost.toFixed(5)}
+                                <Coins size={12} /> ${metrics.cost.toFixed(6)}
                             </div>
                         </div>
                     )}

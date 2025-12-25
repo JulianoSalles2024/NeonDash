@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import { Agent, AgentStatus } from '../types';
 import { useAgentStore } from '../store/useAgentStore';
-import { Plus, Edit2, Trash2, X, Check, Search, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Bot, Zap, Cpu, Activity, Coins } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, Search, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Bot, Zap, Cpu, Activity, Coins, Tag } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
 import { useNavigate } from 'react-router-dom';
+import { MODEL_REGISTRY } from '../constants';
 
 type SortKey = keyof Agent;
 type SortDirection = 'asc' | 'desc';
@@ -32,12 +33,10 @@ const AgentsPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Agent>>({
       name: '',
       description: '',
-      model: 'GPT-4o',
+      model: 'gpt-4o',
       status: AgentStatus.OFFLINE,
-      totalTokens: 0,
       avgLatency: 0,
       successRate: 100,
-      cost: 0
   });
 
   // KPI Calculations
@@ -45,6 +44,21 @@ const AgentsPage: React.FC = () => {
   const totalCost = agents.reduce((acc, a) => acc + a.cost, 0);
   const activeAgents = agents.filter(a => a.status === AgentStatus.ONLINE).length;
   const avgSuccessRate = agents.reduce((acc, a) => acc + a.successRate, 0) / (agents.length || 1);
+
+  // Group models by provider for select
+  const groupedModels = useMemo(() => {
+    type ModelEntry = typeof MODEL_REGISTRY[string] & { id: string };
+    const groups: Record<string, ModelEntry[]> = {};
+    Object.entries(MODEL_REGISTRY).forEach(([key, value]) => {
+        const entry = { ...value, id: key };
+        if (!groups[value.provider]) groups[value.provider] = [];
+        groups[value.provider].push(entry);
+    });
+    return groups;
+  }, []);
+
+  // Get current selected model pricing info
+  const selectedModelInfo = MODEL_REGISTRY[formData.model || 'gpt-4o'];
 
   // --- LOGIC: Filtering & Sorting ---
   const filteredAgents = useMemo(() => {
@@ -95,12 +109,11 @@ const AgentsPage: React.FC = () => {
       setFormData({
         name: '',
         description: '',
-        model: 'GPT-4o',
+        model: 'gpt-4o',
         status: AgentStatus.OFFLINE,
-        totalTokens: 0,
         avgLatency: 0,
         successRate: 100,
-        cost: 0
+        // Tokens and Cost start at 0
       });
       setIsFormOpen(true);
   };
@@ -141,6 +154,8 @@ const AgentsPage: React.FC = () => {
           const newAgent: Agent = {
               id: Date.now().toString(),
               lastUsed: 'Agora',
+              totalTokens: 0, // Init
+              cost: 0,        // Init
               ...formData as Agent
           };
           addAgent(newAgent);
@@ -153,7 +168,7 @@ const AgentsPage: React.FC = () => {
       const { name, value } = e.target;
       setFormData(prev => ({
           ...prev,
-          [name]: ['totalTokens', 'avgLatency', 'successRate', 'cost'].includes(name) ? Number(value) : value
+          [name]: ['avgLatency', 'successRate'].includes(name) ? Number(value) : value
       }));
   };
 
@@ -285,7 +300,11 @@ const AgentsPage: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="p-4">{getStatusBadge(agent.status)}</td>
-                                <td className="p-4"><span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-1 rounded border border-white/5">{agent.model}</span></td>
+                                <td className="p-4">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-mono text-gray-300 bg-white/5 px-2 py-1 rounded border border-white/5">{MODEL_REGISTRY[agent.model]?.label || agent.model}</span>
+                                    </div>
+                                </td>
                                 <td className="p-4 text-right"><span className="text-sm font-mono text-white">{agent.totalTokens.toLocaleString()}</span></td>
                                 <td className="p-4 text-right"><span className={`text-sm font-mono ${agent.avgLatency > 2000 ? 'text-yellow-500' : 'text-gray-300'}`}>{agent.avgLatency}ms</span></td>
                                 <td className="p-4">
@@ -330,16 +349,41 @@ const AgentsPage: React.FC = () => {
                             <input type="text" name="description" value={formData.description} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none" />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-gray-400 uppercase">Modelo LLM</label>
-                                <select name="model" value={formData.model} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg">
-                                    <option value="GPT-4o">GPT-4o</option>
-                                    <option value="GPT-3.5 Turbo">GPT-3.5 Turbo</option>
-                                    <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                                    <option value="Claude 3 Haiku">Claude 3 Haiku</option>
+                        <div className="space-y-2">
+                             <label className="text-xs font-semibold text-gray-400 uppercase">Modelo LLM</label>
+                             <div className="relative">
+                                <select 
+                                    name="model" 
+                                    value={formData.model} 
+                                    onChange={handleChange} 
+                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 pr-8 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg appearance-none"
+                                >
+                                    {Object.entries(groupedModels).map(([provider, models]) => (
+                                        <optgroup key={provider} label={provider} className="text-gray-500 font-bold bg-dark-bg">
+                                            {models.map(m => (
+                                                <option key={m.id} value={m.id} className="text-white bg-dark-bg">
+                                                    {m.label}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    ))}
                                 </select>
-                            </div>
+                                <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500"><ArrowDown size={14} /></div>
+                             </div>
+                             
+                             {/* Dynamic Pricing Info */}
+                             {selectedModelInfo && (
+                                <div className="mt-2 p-2 bg-white/[0.03] rounded border border-white/5 flex items-center justify-between text-xs">
+                                    <span className="text-gray-400 flex items-center gap-1"><Tag size={12}/> {selectedModelInfo.provider}</span>
+                                    <div className="flex gap-3">
+                                        <span className="text-gray-300">In: <span className="text-neon-cyan">${selectedModelInfo.inputPrice.toFixed(2)}</span>/1M</span>
+                                        <span className="text-gray-300">Out: <span className="text-neon-purple">${selectedModelInfo.outputPrice.toFixed(2)}</span>/1M</span>
+                                    </div>
+                                </div>
+                             )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-xs font-semibold text-gray-400 uppercase">Status</label>
                                 <select name="status" value={formData.status} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg">
@@ -349,17 +393,15 @@ const AgentsPage: React.FC = () => {
                                     <option value={AgentStatus.OFFLINE}>Offline</option>
                                 </select>
                             </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Latência Meta (ms)</label>
+                                <input type="number" name="avgLatency" value={formData.avgLatency} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none" />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-gray-400 uppercase">Tokens Totais</label>
-                                <input type="number" name="totalTokens" value={formData.totalTokens} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none" />
-                            </div>
-                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-gray-400 uppercase">Custo Est. (R$)</label>
-                                <input type="number" step="0.01" name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none" />
-                            </div>
+                        {/* Note about auto-calculated fields */}
+                        <div className="text-[10px] text-gray-500 italic mt-2 border-t border-white/5 pt-2">
+                            * Tokens Totais e Custos são calculados automaticamente com base no uso real e na tabela de preços atualizada.
                         </div>
 
                         <div className="pt-4 flex justify-end gap-3">
