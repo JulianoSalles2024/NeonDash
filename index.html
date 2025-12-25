@@ -14,6 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <script>
+      // Shim para compatibilidade com bibliotecas que esperam process.env
       window.process = { env: { NODE_ENV: 'production' } };
 
       tailwind.config = {
@@ -58,7 +59,7 @@
       ::-webkit-scrollbar-thumb:hover { background: #374151; }
       body { background-color: #0B0F1A; color: #E6F0FF; }
     </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
@@ -77,7 +78,7 @@
     "@ai-sdk/openai": "https://esm.sh/@ai-sdk/openai@^3.0.1",
     "ai": "https://esm.sh/ai@^6.0.3",
     "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
-    "@google/generative-ai": "https://esm.sh/@google/generative-ai@^0.12.0"
+    "@google/generative-ai": "https://esm.sh/@google/generative-ai@^0.24.1"
   }
 }
 </script>
