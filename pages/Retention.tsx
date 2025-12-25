@@ -51,7 +51,7 @@ const Retention: React.FC = () => {
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-medium text-white">Análise de Cohort (Retenção Mensal)</h3>
                         <div className="flex gap-2">
-                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/30 rounded-full"></div> >95%</span>
+                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/30 rounded-full"></div> &gt;95%</span>
                             <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/10 rounded-full"></div> 85-95%</span>
                             <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500/10 rounded-full"></div> 70-85%</span>
                         </div>
