@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 export const config = {
   runtime: 'edge',
@@ -25,38 +25,39 @@ export default async function handler(request: Request) {
       throw new Error('Configuração de API Key ausente no servidor (API_KEY).');
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
-    // Fallback para modelos estáveis se os nomes de preview não forem suportados diretamente
-    const modelName = model || 'gemini-1.5-flash';
+    // Map models to new names if necessary or use fallback
+    let modelName = model;
+    
+    // Simple mapping logic based on guidelines if backend receives old model IDs
+    if (!modelName || modelName.includes('gpt') || modelName === 'gemini-1.5-flash') {
+        modelName = 'gemini-3-flash-preview';
+    } else if (modelName.includes('claude') || modelName === 'gemini-1.5-pro') {
+        modelName = 'gemini-3-pro-preview';
+    }
 
-    const generativeModel = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: systemPrompt
-    });
-
-    // Converte mensagens para o formato do Gemini
-    // Formato esperado: { role: 'user' | 'model', parts: [{ text: string }] }
+    // Convert messages to contents format for the new SDK
     const contents = messages.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
 
-    const result = await generativeModel.generateContent({
+    const response = await ai.models.generateContent({
+      model: modelName,
       contents: contents,
-      generationConfig: {
+      config: {
+        systemInstruction: systemPrompt,
         temperature: temperature || 0.7,
       }
     });
 
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text;
     
     return new Response(
       JSON.stringify({ 
         text: text,
         usage: {
-          // Extração segura de uso de tokens (se disponível na resposta)
           totalTokens: response.usageMetadata?.totalTokenCount || 0
         } 
       }),

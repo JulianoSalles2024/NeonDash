@@ -16,8 +16,8 @@ export const MODEL_REGISTRY: Record<string, { provider: string, inputPrice: numb
     'claude-3-haiku': { provider: 'Anthropic', inputPrice: 0.25, outputPrice: 1.25, label: 'Claude 3 Haiku' },
 
     // GOOGLE
-    'gemini-1.5-pro': { provider: 'Google', inputPrice: 1.25, outputPrice: 5.00, label: 'Gemini 1.5 Pro' },
-    'gemini-1.5-flash': { provider: 'Google', inputPrice: 0.075, outputPrice: 0.30, label: 'Gemini 1.5 Flash' },
+    'gemini-3-pro-preview': { provider: 'Google', inputPrice: 1.25, outputPrice: 5.00, label: 'Gemini 3 Pro' },
+    'gemini-3-flash-preview': { provider: 'Google', inputPrice: 0.075, outputPrice: 0.30, label: 'Gemini 3 Flash' },
     'gemini-1.0-pro': { provider: 'Google', inputPrice: 0.50, outputPrice: 1.50, label: 'Gemini 1.0 Pro' },
 
     // OTHERS / SPECIALIZED
@@ -273,7 +273,7 @@ export const MOCK_AGENTS: Agent[] = [
         name: 'Gerador de conteúdo',
         description: 'Escrita de posts, blogs e scripts',
         status: AgentStatus.ONLINE,
-        model: 'gemini-1.5-pro',
+        model: 'gemini-3-pro-preview',
         totalTokens: 4500000,
         avgLatency: 2100,
         successRate: 96.0,
