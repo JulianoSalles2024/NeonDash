@@ -1,14 +1,5 @@
-// Map UI model names to standard Gemini model IDs.
-const MODEL_MAPPING: Record<string, string> = {
-  'GPT-4o': 'gemini-3-pro-preview', // High intelligence -> Gemini 3 Pro
-  'Claude 3.5 Sonnet': 'gemini-3-pro-preview',
-  'GPT-3.5 Turbo': 'gemini-3-flash-preview', // Fast & Cheap -> Gemini 3 Flash
-  'Claude 3 Haiku': 'gemini-3-flash-preview',
-  'gemini-1.5-pro': 'gemini-3-pro-preview',
-  'gemini-1.5-flash': 'gemini-3-flash-preview',
-  'gpt-4o': 'gemini-3-pro-preview',
-  'gpt-3.5-turbo': 'gemini-3-flash-preview',
-};
+// MOCK AI SERVICE - Sem dependência de API KEY
+// Retorna dados simulados para não quebrar a aplicação sem configuração.
 
 export interface AgentChatResponse {
   text: string;
@@ -19,43 +10,18 @@ export interface AgentChatResponse {
   };
 }
 
-// Helper function to call our serverless function
-const callAiEndpoint = async (payload: any): Promise<AgentChatResponse> => {
-  const response = await fetch('/api/agent-chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Erro na API: ${response.status}`);
-  }
-
-  return await response.json();
-};
-
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
-  try {
-    const response = await callAiEndpoint({
-      model: 'gemini-3-flash-preview', // Use cheap/fast model for insights
-      systemPrompt: `
-        Atue como um analista de dados sênior para um SaaS executivo.
-        Analise o resumo de métricas fornecido.
-        Gere UM ÚNICO insight estratégico de alto impacto (máximo de 15 a 20 palavras).
-        Foque em anomalias, oportunidades de crescimento ou riscos de churn.
-        O tom deve ser profissional, direto e em Português.
-        Não use markdown, apenas texto puro.
-      `,
-      messages: [{ role: 'user', content: metricsSummary }],
-      temperature: 0.5
-    });
-    
-    return response.text || "Análise indisponível no momento.";
-  } catch (error) {
-    console.error("Dashboard Insight Error:", error);
-    return "Insights indisponíveis (Erro de conexão).";
-  }
+  // Simula latência
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  const insights = [
+    "Crescimento de 12% no engajamento semanal indica forte adoção da nova feature.",
+    "Atenção: Aumento no churn de contas Starter requer revisão do onboarding.",
+    "Otimização de custos bem sucedida: uso de tokens estabilizado.",
+    "Padrão de uso sugere oportunidade de upsell para o segmento Pro."
+  ];
+
+  return insights[Math.floor(Math.random() * insights.length)];
 };
 
 export const generateAgentChat = async (
@@ -65,26 +31,15 @@ export const generateAgentChat = async (
   history: { role: 'user' | 'assistant'; content: string }[],
   newMessage: string
 ): Promise<AgentChatResponse> => {
-  try {
-    // 1. Resolve actual model ID (Default to Flash if unknown)
-    const modelId = MODEL_MAPPING[uiModelName] || MODEL_MAPPING[uiModelName.toLowerCase()] || 'gemini-3-flash-preview';
+  // Simula latência
+  await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // 2. Prepare payload for Serverless Function
-    const payload = {
-      model: modelId,
-      systemPrompt: systemPrompt,
-      temperature: temperature,
-      messages: [
-        ...history,
-        { role: 'user', content: newMessage }
-      ],
-    };
-
-    // 3. Call API
-    return await callAiEndpoint(payload);
-
-  } catch (error: any) {
-    console.error("Agent Chat Error:", error);
-    throw error;
-  }
+  return {
+    text: `[SIMULAÇÃO LOCAL] Recebi sua mensagem: "${newMessage}". \n\nComo estou rodando em modo offline (sem API Key), esta é uma resposta automática para validar o layout do chat. O agente ${uiModelName} está configurado com temperatura ${temperature}.`,
+    usage: {
+      totalTokens: 150,
+      promptTokens: 50,
+      responseTokens: 100
+    }
+  };
 };
