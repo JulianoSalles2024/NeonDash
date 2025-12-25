@@ -1,4 +1,3 @@
-
 export enum UserStatus {
     ACTIVE = 'Ativo',
     RISK = 'Risco',
@@ -101,4 +100,14 @@ export enum UserStatus {
     description: string;
     timestamp: string;
     icon?: string;
+  }
+
+  export interface StreamEvent {
+    id: string;
+    level: 'critical' | 'warning' | 'info' | 'success';
+    title: string;
+    description: string;
+    timestamp: string;
+    source: string;
+    action?: string;
   }

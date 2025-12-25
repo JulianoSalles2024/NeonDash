@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MOCK_CRITICAL_STREAM } from '../constants';
-
-export interface StreamEvent {
-  id: string;
-  level: 'critical' | 'warning' | 'info' | 'success';
-  title: string;
-  description: string;
-  timestamp: string;
-  source: string;
-  action?: string;
-}
+import { StreamEvent } from '../types';
 
 const TEMPLATES = [
     { level: 'info', title: 'Novo Login Detectado', description: 'Usuário Enterprise acessou via SSO (Okta).', source: 'Auth' },

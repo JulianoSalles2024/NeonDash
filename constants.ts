@@ -1,5 +1,4 @@
-
-import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog } from './types';
+import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog, StreamEvent } from './types';
 
 export const MOCK_USERS: User[] = [
   {
@@ -391,7 +390,7 @@ export const MOCK_USER_EVENTS: UserEvent[] = [
     }
 ];
 
-export const MOCK_CRITICAL_STREAM = [
+export const MOCK_CRITICAL_STREAM: StreamEvent[] = [
   {
       id: 'c1',
       level: 'critical',
