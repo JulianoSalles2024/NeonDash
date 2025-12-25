@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Using the process.env shim configured in vite.config.ts
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// Tenta obter do process.env (injetado pelo Vite) ou usa o fallback direto do projeto
+// Isso garante que o app funcione mesmo se o usuário esquecer o arquivo .env
+const supabaseUrl = process.env.SUPABASE_URL || "https://mzxczamhulpsvswojsod.supabase.co";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eGN6YW1odWxwc3Zzd29qc29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTI2NDQsImV4cCI6MjA4MjE4ODY0NH0.p2YsHlvNMYA-Lm6tLQ7bBPIadr5I_grJzPz63QEI_i0";
 
+// Validação simples
 const isConfigured = supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http');
 
 if (!isConfigured) {
@@ -14,9 +16,8 @@ if (!isConfigured) {
   );
 }
 
-// If not configured, we point to a dummy URL to satisfy the client type signature,
-// but the app logic should ideally check this connection state.
+// Inicializa o cliente com as credenciais resolvidas
 export const supabase = createClient(
-  supabaseUrl || 'https://mock-project.supabase.co', 
-  supabaseAnonKey || 'mock-key-placeholder'
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder-key'
 );

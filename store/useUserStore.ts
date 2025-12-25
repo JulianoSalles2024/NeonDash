@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { User, UserHealthMetrics, UserStatus } from '../types';
-import { MOCK_USERS } from '../constants';
 import { HealthWeights } from './useHealthStore';
 import { supabase } from '../lib/supabase';
 
@@ -48,6 +47,9 @@ const mapFromDb = (dbUser: any): User => ({
     metrics: ensureMetrics(dbUser.metrics, dbUser.health_score ?? 50)
 });
 
+// Helper: Check if ID is a valid UUID (Real DB ID) vs Mock ID
+const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 export const useUserStore = create<UserState>((set, get) => ({
   users: [], // Start empty, fetch on mount
   isLoading: false,
@@ -63,23 +65,23 @@ export const useUserStore = create<UserState>((set, get) => ({
 
         if (error) throw error;
 
-        if (data && data.length > 0) {
+        // CRITICAL CHANGE: Only use real data. No fallback to mocks.
+        if (data) {
             set({ users: data.map(mapFromDb) });
         } else {
-            console.log("Supabase empty, using Mocks for visual demo");
-            set({ users: MOCK_USERS });
+            set({ users: [] });
         }
     } catch (err: any) {
         console.error('Error fetching users:', err);
-        // Fallback to mocks on error to keep the UI functional
-        set({ error: err.message, users: MOCK_USERS }); 
+        // Do not load mocks on error, keep list empty or show error state
+        set({ error: err.message, users: [] }); 
     } finally {
         set({ isLoading: false });
     }
   },
 
   addUser: async (userData) => {
-    // Optimistic Update (Temporary ID)
+    // Optimistic Update (Temporary ID for UI responsiveness)
     const tempId = Date.now().toString();
     const newUser = { 
         ...userData, 
@@ -109,7 +111,8 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     if (error) {
         console.error("Error adding user to DB:", error);
-        // Optional: Rollback state here if strict consistency is needed
+        // Remove the optimistic user if DB fails
+        set((state) => ({ users: state.users.filter(u => u.id !== tempId) }));
         return;
     }
 
@@ -127,6 +130,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
     }));
 
+    // If it's not a UUID, it's likely a leftover mock or error, don't send to DB
+    if (!isUUID(id)) return;
+
     // 2. Prepare DB Payload
     const dbPayload: any = {};
     if (changes.name) dbPayload.name = changes.name;
@@ -137,8 +143,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
     if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
     if (changes.metrics) dbPayload.metrics = changes.metrics;
-    // Note: lastActive and tokensUsed generally updated by system events, but can be here too if needed
-
+    
     // 3. Send to DB
     const { error } = await supabase.from('clients').update(dbPayload).eq('id', id);
     
@@ -151,13 +156,20 @@ export const useUserStore = create<UserState>((set, get) => ({
     // Optimistic Delete
     set((state) => ({ users: state.users.filter((u) => u.id !== id) }));
     
+    // If it's a mock user (not a UUID), don't send to DB
+    if (!isUUID(id)) {
+        return;
+    }
+
     const { error } = await supabase.from('clients').delete().eq('id', id);
-    if (error) console.error("Error deleting user:", error);
+    if (error) {
+        console.error("Error deleting user from DB:", error);
+    }
   },
 
   resetUsers: () => {
-    set({ users: MOCK_USERS });
-    // Note: We don't wipe the DB here to prevent accidental massive data loss via a simple UI button
+    // Clears the list locally. Does not delete from DB to prevent accidents.
+    set({ users: [] });
   },
 
   recalculateAllScores: (weights: HealthWeights) => set((state) => {
