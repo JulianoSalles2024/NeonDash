@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const config = {
   runtime: 'edge',
@@ -25,7 +25,15 @@ export default async function handler(request: Request) {
       throw new Error('Configuração de API Key ausente no servidor (API_KEY).');
     }
 
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // Fallback para modelos estáveis se os nomes de preview não forem suportados diretamente
+    const modelName = model || 'gemini-1.5-flash';
+
+    const generativeModel = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: systemPrompt
+    });
 
     // Converte mensagens para o formato do Gemini
     // Formato esperado: { role: 'user' | 'model', parts: [{ text: string }] }
@@ -34,25 +42,22 @@ export default async function handler(request: Request) {
       parts: [{ text: msg.content }]
     }));
 
-    // Se houver prompt de sistema, ele vai na config
-    // O modelo deve ser um modelo Gemini válido mapeado pelo frontend
-    const response = await ai.models.generateContent({
-      model: model || 'gemini-3-flash-preview',
+    const result = await generativeModel.generateContent({
       contents: contents,
-      config: {
-        systemInstruction: systemPrompt,
+      generationConfig: {
         temperature: temperature || 0.7,
       }
     });
 
+    const response = await result.response;
+    const text = response.text();
+    
     return new Response(
       JSON.stringify({ 
-        text: response.text,
+        text: text,
         usage: {
-          // Gemini não retorna contagem exata de tokens na resposta padrão de texto simples da SDK nova de forma direta em usageMetadata as vezes, 
-          // mas vamos simular ou extrair se disponível.
-          // Para este exemplo simplificado, retornamos valores estimados ou extraídos se existirem no objeto bruto
-          totalTokens: (response as any).usageMetadata?.totalTokenCount || 0
+          // Extração segura de uso de tokens (se disponível na resposta)
+          totalTokens: response.usageMetadata?.totalTokenCount || 0
         } 
       }),
       { 

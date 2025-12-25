@@ -1,13 +1,13 @@
 // Map UI model names to standard Gemini model IDs.
 const MODEL_MAPPING: Record<string, string> = {
-  'GPT-4o': 'gemini-3-pro-preview', // High intelligence
-  'Claude 3.5 Sonnet': 'gemini-3-pro-preview',
-  'GPT-3.5 Turbo': 'gemini-3-flash-preview', // Fast & Cheap
-  'Claude 3 Haiku': 'gemini-3-flash-preview',
-  'gemini-1.5-pro': 'gemini-3-pro-preview',
-  'gemini-1.5-flash': 'gemini-3-flash-preview',
-  'gpt-4o': 'gemini-3-pro-preview',
-  'gpt-3.5-turbo': 'gemini-3-flash-preview',
+  'GPT-4o': 'gemini-1.5-pro', // High intelligence
+  'Claude 3.5 Sonnet': 'gemini-1.5-pro',
+  'GPT-3.5 Turbo': 'gemini-1.5-flash', // Fast & Cheap
+  'Claude 3 Haiku': 'gemini-1.5-flash',
+  'gemini-1.5-pro': 'gemini-1.5-pro',
+  'gemini-1.5-flash': 'gemini-1.5-flash',
+  'gpt-4o': 'gemini-1.5-pro',
+  'gpt-3.5-turbo': 'gemini-1.5-flash',
 };
 
 export interface AgentChatResponse {
@@ -38,7 +38,7 @@ const callAiEndpoint = async (payload: any): Promise<AgentChatResponse> => {
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
     const response = await callAiEndpoint({
-      model: 'gemini-3-flash-preview', // Use cheap/fast model for insights
+      model: 'gemini-1.5-flash', // Use cheap/fast model for insights
       systemPrompt: `
         Atue como um analista de dados sênior para um SaaS executivo.
         Analise o resumo de métricas fornecido.
@@ -67,7 +67,7 @@ export const generateAgentChat = async (
 ): Promise<AgentChatResponse> => {
   try {
     // 1. Resolve actual model ID (Default to Flash if unknown)
-    const modelId = MODEL_MAPPING[uiModelName] || MODEL_MAPPING[uiModelName.toLowerCase()] || 'gemini-3-flash-preview';
+    const modelId = MODEL_MAPPING[uiModelName] || MODEL_MAPPING[uiModelName.toLowerCase()] || 'gemini-1.5-flash';
 
     // 2. Prepare payload for Serverless Function
     const payload = {
