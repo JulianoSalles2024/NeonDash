@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, Mail, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react';
+import { Mail, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useToastStore } from '../store/useToastStore';
 
@@ -68,9 +68,6 @@ const Login: React.FC = () => {
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-cyan to-transparent opacity-50 animate-glow"></div>
 
                 <div className="text-center mb-10">
-                    <div className="w-16 h-16 bg-gradient-to-br from-neon-blue to-neon-purple rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(78,225,255,0.3)]">
-                        <Activity size={32} className="text-white" />
-                    </div>
                     <h1 className="text-3xl font-display font-bold text-white tracking-wider mb-2">NEON<span className="text-neon-cyan">DASH</span></h1>
                     <p className="text-gray-500 text-sm tracking-widest uppercase">Identificação Requerida</p>
                 </div>
@@ -124,6 +121,9 @@ const Login: React.FC = () => {
                 <div className="mt-6 text-center">
                     <p className="text-xs text-gray-600 flex items-center justify-center gap-2">
                         <ShieldCheck size={14} /> Conexão segura 256-bit TLS
+                    </p>
+                    <p className="text-[10px] text-gray-700 mt-2 font-mono uppercase tracking-widest opacity-60">
+                        By Juliano Salles
                     </p>
                 </div>
             </div>

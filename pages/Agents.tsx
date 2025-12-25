@@ -358,7 +358,7 @@ const AgentsPage: React.FC = () => {
                                     onChange={handleChange} 
                                     className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 pr-8 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg appearance-none"
                                 >
-                                    {Object.entries(groupedModels).map(([provider, models]) => (
+                                    {Object.entries(groupedModels).map(([provider, models]: [string, any[]]) => (
                                         <optgroup key={provider} label={provider} className="text-gray-500 font-bold bg-dark-bg">
                                             {models.map(m => (
                                                 <option key={m.id} value={m.id} className="text-white bg-dark-bg">

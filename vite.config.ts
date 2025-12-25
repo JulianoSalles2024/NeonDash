@@ -4,26 +4,50 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
-  const apiKey = env.API_KEY || env.VITE_API_KEY || "AIzaSyCNh2pl2VVUhBMnX4xrSIigh3656bkAFrk";
-  const vercelKey = env.VERCEL_AI_API_KEY || "vck_89wepKXwO7QbYtJmSiLvhNEaN0ZuaAu20NazAUX9aulBvTwyvZ2UM9AT";
-  
-  const supabaseUrl = env.VITE_SUPABASE_URL || "https://mzxczamhulpsvswojsod.supabase.co";
-  const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eGN6YW1odWxwc3Zzd29qc29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTI2NDQsImV4cCI6MjA4MjE4ODY0NH0.p2YsHlvNMYA-Lm6tLQ7bBPIadr5I_grJzPz63QEI_i0";
-
   return {
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(apiKey),
-      'process.env.VERCEL_AI_API_KEY': JSON.stringify(vercelKey),
-      'process.env.SUPABASE_URL': JSON.stringify(supabaseUrl),
-      'process.env.SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey)
+      // Injeta variáveis públicas no cliente (navegador)
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY || ""),
+      'process.env.SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || env.SUPABASE_URL || ""),
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || "")
+      // NOTA: Nunca injete VERCEL_AI_API_KEY aqui, pois ela é secreta e deve ficar apenas no servidor (/api)
     },
     build: {
       outDir: 'dist',
-      sourcemap: false
+      sourcemap: false,
+      chunkSizeWarningLimit: 1600,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'react-vendor';
+              }
+              if (id.includes('recharts')) {
+                return 'recharts';
+              }
+              if (id.includes('framer-motion')) {
+                return 'framer';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              return 'vendor';
+            }
+          }
+        }
+      }
     },
     server: {
-      port: 3000
+      port: 3000,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '/api')
+        }
+      }
     }
   };
 });

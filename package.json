@@ -10,8 +10,7 @@
     "gateway": "tsx gateway.ts"
   },
   "dependencies": {
-    "ai": "^3.4.0",
-    "@ai-sdk/openai": "^0.0.60",
+    "@google/genai": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^5.35.1",
     "framer-motion": "^11.2.6",

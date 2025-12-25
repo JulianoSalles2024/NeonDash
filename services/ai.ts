@@ -1,44 +1,45 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
-
-// Initialize the OpenAI provider with Vercel Gateway configuration
-// Using the key provided by the user
-const apiKey = process.env.VERCEL_AI_API_KEY || "";
-
-const openai = createOpenAI({
-  apiKey: apiKey,
-  baseURL: 'https://gateway.ai.vercel.dev/v1',
-});
-
-// Map UI model names to Gateway-compatible model IDs.
-// We map high-intelligence models to gpt-4o and faster ones to gpt-3.5-turbo 
-// to ensure compatibility with the standard OpenAI provider protocol used by the gateway.
+// Map UI model names to standard Gemini model IDs.
 const MODEL_MAPPING: Record<string, string> = {
-  'GPT-4o': 'gpt-4o',
-  'Claude 3.5 Sonnet': 'gpt-4o', // Mapping to GPT-4o as fallback for consistent Gateway access
-  'GPT-3.5 Turbo': 'gpt-3.5-turbo',
-  'Claude 3 Haiku': 'gpt-3.5-turbo', // Fallback
+  'GPT-4o': 'gemini-3-pro-preview', // High intelligence
+  'Claude 3.5 Sonnet': 'gemini-3-pro-preview',
+  'GPT-3.5 Turbo': 'gemini-3-flash-preview', // Fast & Cheap
+  'Claude 3 Haiku': 'gemini-3-flash-preview',
+  'gemini-1.5-pro': 'gemini-3-pro-preview',
+  'gemini-1.5-flash': 'gemini-3-flash-preview',
+  'gpt-4o': 'gemini-3-pro-preview',
+  'gpt-3.5-turbo': 'gemini-3-flash-preview',
 };
 
 export interface AgentChatResponse {
   text: string;
   usage: {
-    promptTokens: number;
-    responseTokens: number;
+    promptTokens?: number;
+    responseTokens?: number;
     totalTokens: number;
   };
 }
 
-export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
-  if (!apiKey) {
-    console.warn("Vercel AI API Key is missing.");
-    return "Insights indisponíveis (Chave API ausente).";
+// Helper function to call our serverless function
+const callAiEndpoint = async (payload: any): Promise<AgentChatResponse> => {
+  const response = await fetch('/api/agent-chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Erro na API: ${response.status}`);
   }
 
+  return await response.json();
+};
+
+export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
-    const { text } = await generateText({
-      model: openai('gpt-3.5-turbo'), // Use a fast, cheap model for background insights
-      system: `
+    const response = await callAiEndpoint({
+      model: 'gemini-3-flash-preview', // Use cheap/fast model for insights
+      systemPrompt: `
         Atue como um analista de dados sênior para um SaaS executivo.
         Analise o resumo de métricas fornecido.
         Gere UM ÚNICO insight estratégico de alto impacto (máximo de 15 a 20 palavras).
@@ -46,13 +47,14 @@ export const generateDashboardInsight = async (metricsSummary: string): Promise<
         O tom deve ser profissional, direto e em Português.
         Não use markdown, apenas texto puro.
       `,
-      prompt: metricsSummary,
+      messages: [{ role: 'user', content: metricsSummary }],
+      temperature: 0.5
     });
     
-    return text || "Análise indisponível no momento.";
+    return response.text || "Análise indisponível no momento.";
   } catch (error) {
-    console.error("Vercel AI SDK Error:", error);
-    return "";
+    console.error("Dashboard Insight Error:", error);
+    return "Insights indisponíveis (Erro de conexão).";
   }
 };
 
@@ -63,43 +65,26 @@ export const generateAgentChat = async (
   history: { role: 'user' | 'assistant'; content: string }[],
   newMessage: string
 ): Promise<AgentChatResponse> => {
-  if (!apiKey) {
-    throw new Error("Chave de API do Vercel AI Gateway não configurada.");
-  }
-
   try {
-    // 1. Resolve actual model ID
-    const modelId = MODEL_MAPPING[uiModelName] || 'gpt-3.5-turbo';
+    // 1. Resolve actual model ID (Default to Flash if unknown)
+    const modelId = MODEL_MAPPING[uiModelName] || MODEL_MAPPING[uiModelName.toLowerCase()] || 'gemini-3-flash-preview';
 
-    // 2. Prepare messages (History + New Message)
-    const convertedHistory = history.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-
-    // 3. Call AI via Vercel SDK
-    const { text, usage } = await generateText({
-      model: openai(modelId),
-      system: systemPrompt,
+    // 2. Prepare payload for Serverless Function
+    const payload = {
+      model: modelId,
+      systemPrompt: systemPrompt,
       temperature: temperature,
       messages: [
-        ...convertedHistory,
+        ...history,
         { role: 'user', content: newMessage }
       ],
-    });
-
-    // 4. Return formatted response
-    return {
-      text,
-      usage: {
-        promptTokens: usage.promptTokens,
-        responseTokens: usage.completionTokens,
-        totalTokens: usage.totalTokens
-      }
     };
 
+    // 3. Call API
+    return await callAiEndpoint(payload);
+
   } catch (error: any) {
-    console.error("Agent Chat Error (Vercel SDK):", error);
-    throw new Error("Falha na comunicação com a IA.");
+    console.error("Agent Chat Error:", error);
+    throw error;
   }
 };

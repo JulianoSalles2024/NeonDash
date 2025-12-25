@@ -136,7 +136,7 @@ const AgentProfile: React.FC = () => {
                                             onChange={(e) => setConfigForm({...configForm, model: e.target.value})}
                                             className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none [&>option]:bg-dark-bg appearance-none pr-8"
                                         >
-                                            {Object.entries(groupedModels).map(([provider, models]) => (
+                                            {Object.entries(groupedModels).map(([provider, models]: [string, any[]]) => (
                                                 <optgroup key={provider} label={provider} className="text-gray-500 font-bold bg-dark-bg">
                                                     {models.map(m => (
                                                         <option key={m.id} value={m.id} className="text-white bg-dark-bg">
