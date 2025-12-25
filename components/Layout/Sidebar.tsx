@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   Users, 
   Activity, 
-  Zap, 
   CreditCard, 
   Settings, 
   PieChart,
@@ -114,7 +113,6 @@ const Sidebar: React.FC = () => {
             <SectionTitle label="Plataforma" collapsed={isSidebarCollapsed} />
             <NavItem icon={LayoutDashboard} label="Mission Control" to="/" active={location.pathname === '/'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
             <NavItem icon={Activity} label="Motor de Saúde" to="/health" active={location.pathname === '/health'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={Zap} label="Funil de Ativação" to="/funnel" active={location.pathname === '/funnel'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
           </div>
 
           <div className="mb-6">

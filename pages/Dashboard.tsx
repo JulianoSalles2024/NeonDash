@@ -101,7 +101,8 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="Total de Usuários"
                     value={totalUsers}
-                    subValue={data ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend}% vs média` : "..."}
+                    // FIX: Applied .toFixed(3) to force 3 decimal places
+                    subValue={data ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend.toFixed(3)}% vs média` : "..."}
                     subColor="text-neon-green"
                     chartData={data?.activeUsers.history || []}
                     chartColor={COLORS.blue}

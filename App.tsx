@@ -8,7 +8,6 @@ import UsersPage from './pages/Users';
 import AgentsPage from './pages/Agents';
 import AgentProfile from './pages/AgentProfile';
 import UserProfile from './pages/UserProfile';
-import FunnelPage from './pages/Funnel';
 import HealthEngine from './pages/HealthEngine';
 import Retention from './pages/Retention';
 import Billing from './pages/Billing';
@@ -43,7 +42,6 @@ const App: React.FC = () => {
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/health" element={<HealthEngine />} />
-            <Route path="/funnel" element={<FunnelPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:id" element={<UserProfile />} />
             <Route path="/agents" element={<AgentsPage />} />
