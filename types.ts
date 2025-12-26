@@ -111,3 +111,12 @@ export enum UserStatus {
     source: string;
     action?: string;
   }
+
+  export interface AgentChatResponse {
+    text: string;
+    usage: {
+      promptTokens?: number;
+      responseTokens?: number;
+      totalTokens: number;
+    };
+  }

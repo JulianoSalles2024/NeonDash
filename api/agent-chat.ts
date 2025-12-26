@@ -22,22 +22,49 @@ export default async function handler(request: Request) {
     const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
-      throw new Error('Configuração de API Key ausente no servidor (API_KEY).');
+      return new Response(
+        JSON.stringify({ 
+            error: "API Key não configurada no ambiente Vercel (API_KEY).", 
+            text: "Erro de Configuração: Adicione sua API_KEY nas variáveis de ambiente do Vercel." 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
-    // Map models to new names if necessary or use fallback
-    let modelName = model;
+    // --- SMART MODEL MAPPING ---
+    // A UI permite selecionar GPT-4o, Claude, etc.
+    // Como estamos usando apenas a chave do Google Gemini, precisamos mapear
+    // essas escolhas para o equivalente mais próximo do Gemini para a chamada funcionar.
     
-    // Simple mapping logic based on guidelines if backend receives old model IDs
-    if (!modelName || modelName.includes('gpt') || modelName === 'gemini-1.5-flash') {
-        modelName = 'gemini-3-flash-preview';
-    } else if (modelName.includes('claude') || modelName === 'gemini-1.5-pro') {
-        modelName = 'gemini-3-pro-preview';
-    }
+    let modelName = model || 'gemini-3-flash-preview';
+    const lowerModel = modelName.toLowerCase();
 
-    // Convert messages to contents format for the new SDK
+    // 1. Complex/Reasoning Tasks -> Pro
+    if (
+        lowerModel.includes('gpt-4') || 
+        lowerModel.includes('claude-3-opus') || 
+        lowerModel.includes('gemini-pro') ||
+        lowerModel.includes('sonnet') ||
+        lowerModel.includes('mistral-large')
+    ) {
+        modelName = 'gemini-3-pro-preview';
+    } 
+    // 2. Fast/Simple Tasks -> Flash
+    else if (
+        lowerModel.includes('gpt-3.5') || 
+        lowerModel.includes('haiku') || 
+        lowerModel.includes('flash') || 
+        lowerModel.includes('mini')
+    ) {
+        modelName = 'gemini-3-flash-preview';
+    }
+    // Default fallback is kept as whatever was passed if it matches none, 
+    // but usually falls back to one of the above if the UI sends standard IDs.
+
+    // Convert messages to contents format for the Google GenAI SDK
+    // The SDK expects: { role: 'user' | 'model', parts: [{ text: string }] }
     const contents = messages.map((msg: any) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
