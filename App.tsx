@@ -1,7 +1,10 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { supabase } from './lib/supabase';
+import { useAuthStore } from './store/useAuthStore';
+import { useUserStore } from './store/useUserStore';
+import { useAgentStore } from './store/useAgentStore';
 import ProtectedLayout from './components/Layout/ProtectedLayout';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/Users';
@@ -21,6 +24,46 @@ import SnapshotDrawer from './components/Snapshots/SnapshotDrawer';
 
 const App: React.FC = () => {
   const location = useLocation();
+  const { setUser } = useAuthStore();
+  const { fetchUsers } = useUserStore();
+  const { fetchAgents } = useAgentStore();
+
+  useEffect(() => {
+    // 1. Verificar sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata.name || 'Admin',
+          company: session.user.user_metadata.company || 'Neon HQ',
+          role: session.user.user_metadata.role || 'admin'
+        });
+        // Carregar dados iniciais
+        fetchUsers();
+        fetchAgents();
+      }
+    });
+
+    // 2. Ouvir mudanças de auth (login, logout, refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata.name || 'Admin',
+          company: session.user.user_metadata.company || 'Neon HQ',
+          role: session.user.user_metadata.role || 'admin'
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setUser, fetchUsers, fetchAgents]);
 
   return (
     <>

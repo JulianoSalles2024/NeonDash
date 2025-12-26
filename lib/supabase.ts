@@ -1,22 +1,16 @@
-// MOCK SUPABASE - Modo Offline/Local
-// Impede erros ao tentar conectar sem credenciais.
+import { createClient } from '@supabase/supabase-js';
 
-export const supabase = {
-  from: () => ({
-    select: () => Promise.resolve({ data: [], error: null }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null }),
-    upsert: () => Promise.resolve({ data: null, error: null }),
-    eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) })
-  }),
-  auth: {
-    admin: {
-      createUser: () => Promise.resolve({ data: { user: null }, error: null }),
-      inviteUserByEmail: () => Promise.resolve({ data: { user: null }, error: null }),
-      deleteUser: () => Promise.resolve({ error: null })
-    },
-    signInWithPassword: () => Promise.resolve({ data: { user: { id: 'mock-user' } }, error: null }),
-    signOut: () => Promise.resolve({ error: null })
-  }
-};
+// Cast import.meta to any to avoid TypeScript errors when vite types are not loaded
+const env = (import.meta as any).env;
+
+const supabaseUrl = env?.VITE_SUPABASE_URL || 'https://mzxczamhulpsvswojsod.supabase.co';
+const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eGN6YW1odWxwc3Zzd29qc29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTI2NDQsImV4cCI6MjA4MjE4ODY0NH0.p2YsHlvNMYA-Lm6tLQ7bBPIadr5I_grJzPz63QEI_i0';
+
+if (!supabaseAnonKey) {
+  console.warn('VITE_SUPABASE_ANON_KEY é obrigatório para funcionamento completo');
+}
+
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseAnonKey
+);
