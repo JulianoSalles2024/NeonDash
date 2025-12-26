@@ -36,14 +36,22 @@ const Dashboard: React.FC = () => {
   // Calculate Churn Rate (Churned / Total)
   const churnedCount = users.filter(u => u.status === 'Cancelado').length;
   const churnRate = users.length > 0 ? (churnedCount / users.length) * 100 : 0;
+  // Calculate Avg Health
+  const totalScore = users.reduce((acc, user) => acc + (user.healthScore || 0), 0);
+  const globalScore = users.length > 0 ? Math.round(totalScore / users.length) : 0;
   
   // Get global timeframe
   const { timeframe } = useTimeframeStore();
 
-  // Fetch chart history
+  // Fetch chart history - PASSING REAL DATA TO MOCK GENERATOR
   const { data, isLoading: isMetricsLoading } = useQuery({
-    queryKey: ['dashboardMetrics', timeframe],
-    queryFn: () => fetchDashboardMetrics(timeframe),
+    queryKey: ['dashboardMetrics', timeframe, totalUsers, totalMRR, churnRate], // Refetch when data changes
+    queryFn: () => fetchDashboardMetrics(timeframe, {
+        users: totalUsers,
+        mrr: totalMRR,
+        churn: churnRate,
+        health: globalScore
+    }),
     refetchInterval: 30000, 
   });
 
@@ -101,9 +109,8 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="Total de Usuários"
                     value={totalUsers}
-                    // FIX: Applied .toFixed(3) to force 3 decimal places
-                    subValue={data ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend.toFixed(3)}% vs média` : "..."}
-                    subColor="text-neon-green"
+                    subValue={data?.activeUsers.trend ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend.toFixed(3)}% vs média` : "0.0% vs média"}
+                    subColor={data?.activeUsers.trend && data.activeUsers.trend > 0 ? "text-neon-green" : "text-gray-500"}
                     chartData={data?.activeUsers.history || []}
                     chartColor={COLORS.blue}
                     isLoading={isLoading}
@@ -113,8 +120,8 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="RRC (MRR)"
                     value={`R$ ${(totalMRR / 1000).toFixed(1)}k`}
-                    subValue={data ? `${data.mrr.trend > 0 ? '+' : ''}${data.mrr.trend.toFixed(1)}%` : "..."}
-                    subColor="text-neon-green"
+                    subValue={data?.mrr.trend ? `${data.mrr.trend > 0 ? '+' : ''}${data.mrr.trend.toFixed(1)}%` : "0.0%"}
+                    subColor={data?.mrr.trend && data.mrr.trend > 0 ? "text-neon-green" : "text-gray-500"}
                     chartData={data?.mrr.history || []}
                     chartColor={COLORS.purple}
                     isLoading={isLoading}
@@ -124,7 +131,7 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="Taxa de Churn"
                     value={`${churnRate.toFixed(1)}%`}
-                    subValue={data ? `${data.churn.trend > 0 ? '+' : ''}${data.churn.trend.toFixed(1)}% vs anterior` : "..."}
+                    subValue={data?.churn.trend ? `${data.churn.trend > 0 ? '+' : ''}${data.churn.trend.toFixed(1)}% vs anterior` : "0.0%"}
                     subColor={data?.churn.trend && data.churn.trend > 0 ? "text-red-400" : "text-neon-green"}
                     chartData={data?.churn.history || []}
                     chartColor={COLORS.pink} 

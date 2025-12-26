@@ -231,10 +231,37 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto relative">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 className="text-3xl font-bold font-display text-white">Usuários</h1>
                 <p className="text-sm text-gray-500 mt-1">Gerencie o acesso, planos e saúde da base de clientes.</p>
+            </div>
+            
+            {/* ACTIONS & SEARCH - MOVED TO HEADER */}
+            <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                <div className="relative group grow md:grow-0">
+                    <Search className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-neon-cyan transition-colors" size={16} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por nome, email..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full md:w-64 bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:border-neon-cyan/50 focus:bg-white/10 transition-all"
+                    />
+                </div>
+                
+                <button 
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                    <Download size={16} /> CSV
+                </button>
+                <button 
+                    onClick={handleAddNew}
+                    className="flex items-center gap-2 px-4 py-2 bg-neon-cyan text-dark-bg font-bold rounded-lg text-sm hover:bg-neon-blue transition-all shadow-[0_0_15px_rgba(124,252,243,0.3)]"
+                >
+                    <Plus size={18} /> Novo Usuário
+                </button>
             </div>
         </div>
 
@@ -273,35 +300,6 @@ const UsersPage: React.FC = () => {
                     <p className="text-2xl font-bold text-white">{riskUsers}</p>
                 </div>
             </Card>
-        </div>
-
-        {/* --- ACTIONS & SEARCH --- */}
-        <div className="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
-            <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                <div className="relative group grow md:grow-0">
-                    <Search className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-neon-cyan transition-colors" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar por nome, email..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-64 bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:border-neon-cyan/50 focus:bg-white/10 transition-all"
-                    />
-                </div>
-                
-                <button 
-                    onClick={handleExportCSV}
-                    className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                    <Download size={16} /> CSV
-                </button>
-                <button 
-                    onClick={handleAddNew}
-                    className="flex items-center gap-2 px-4 py-2 bg-neon-cyan text-dark-bg font-bold rounded-lg text-sm hover:bg-neon-blue transition-all shadow-[0_0_15px_rgba(124,252,243,0.3)]"
-                >
-                    <Plus size={18} /> Novo Usuário
-                </button>
-            </div>
         </div>
 
         <Card className="overflow-hidden p-0 min-h-[500px]">

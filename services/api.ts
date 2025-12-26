@@ -24,10 +24,20 @@ const generateMockData = (timeframe: string, baseValue: number, volatility: numb
             break;
     }
 
-    return labels.map(label => ({
-        name: label,
-        value: Math.floor(baseValue + (Math.random() - 0.5) * volatility)
-    }));
+    // Se o valor base for 0, retorna um gráfico plano zerado
+    if (baseValue === 0) {
+        return labels.map(label => ({ name: label, value: 0 }));
+    }
+
+    return labels.map(label => {
+        // Garante que não gere números negativos para usuários/dinheiro
+        const randomVariation = (Math.random() - 0.5) * volatility;
+        const value = Math.max(0, Math.floor(baseValue + randomVariation));
+        return {
+            name: label,
+            value: value
+        };
+    });
 };
 
 // Simulation of a backend response
@@ -50,33 +60,44 @@ export interface DashboardMetricsResponse {
     healthScore: number;
 }
 
-export const fetchDashboardMetrics = async (timeframe: string): Promise<DashboardMetricsResponse> => {
-    // Simulate network latency (300-800ms)
-    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
-
-    // Determine base values based on timeframe to simulate different views
-    // e.g., '1h' might show lower aggregated numbers if we were aggregating, 
-    // but for "Active Users Now" it stays similar, just the chart flickers.
+// Agora aceita o estado atual real para gerar histórico coerente
+export const fetchDashboardMetrics = async (
+    timeframe: string, 
+    currentStats: { users: number, mrr: number, churn: number, health: number }
+): Promise<DashboardMetricsResponse> => {
     
-    // Randomize slightly so it feels "live" on every fetch
+    // Simulate network latency (300-800ms)
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Se não houver usuários, zera todas as tendências
+    if (currentStats.users === 0) {
+        return {
+            activeUsers: { current: 0, trend: 0, history: generateMockData(timeframe, 0, 0) },
+            mrr: { current: 0, trend: 0, history: generateMockData(timeframe, 0, 0) },
+            churn: { current: 0, trend: 0, history: generateMockData(timeframe, 0, 0) },
+            healthScore: 0
+        };
+    }
+
+    // Se houver dados, gera uma "flutuação" baseada nos dados reais para parecer vivo
     const noise = () => (Math.random() - 0.5) * 0.1; 
 
     return {
         activeUsers: {
-            current: Math.floor(124 * (1 + noise())), // Adjusted to ~124 users
-            trend: 4.2 + Math.floor(noise() * 20) / 10,
-            history: generateMockData(timeframe, 120, 15)
+            current: currentStats.users,
+            trend: Number((noise() * 5).toFixed(2)), // Pequena variação simulada
+            history: generateMockData(timeframe, currentStats.users, currentStats.users * 0.1)
         },
         mrr: {
-            current: 18450 + Math.floor(noise() * 500), // Adjusted to ~R$ 18.5k
-            trend: 2.8 + noise() * 2,
-            history: generateMockData(timeframe, 18200, 300)
+            current: currentStats.mrr,
+            trend: Number((noise() * 2).toFixed(2)),
+            history: generateMockData(timeframe, currentStats.mrr, currentStats.mrr * 0.05)
         },
         churn: {
-            current: Math.abs(1.2 + noise()), // Slightly more realistic churn fluctuation
-            trend: -0.1 + noise(),
-            history: generateMockData(timeframe, 1.2, 0.3).map(p => ({...p, value: Math.abs(p.value)}))
+            current: currentStats.churn,
+            trend: Number((noise()).toFixed(2)),
+            history: generateMockData(timeframe, currentStats.churn, 0.5)
         },
-        healthScore: Math.min(100, Math.max(0, Math.floor(87 + noise() * 5)))
+        healthScore: currentStats.health
     };
 };
