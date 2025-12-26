@@ -19,19 +19,33 @@ const Register: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate network delay
-    setTimeout(() => {
-        register(email, name, company);
+    try {
+        const success = await register(email, name, company);
         
+        if (success) {
+            addToast({
+                type: 'success',
+                title: 'Credencial Criada',
+                message: 'Cadastro realizado com sucesso. Faça login para acessar.',
+                duration: 3000
+            });
+            navigate('/login');
+        } else {
+            addToast({
+                type: 'error',
+                title: 'Erro no Cadastro',
+                message: 'Não foi possível criar a conta. O email pode já estar em uso.',
+            });
+        }
+    } catch (error) {
         addToast({
-            type: 'success',
-            title: 'Credencial Criada',
-            message: 'Cadastro realizado com sucesso. Faça login para acessar.',
-            duration: 3000
+            type: 'error',
+            title: 'Erro',
+            message: 'Falha na comunicação com o servidor.',
         });
-        
-        navigate('/login');
-    }, 1500);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (

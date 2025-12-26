@@ -15,28 +15,42 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) {
+        addToast({ type: 'error', title: 'Erro', message: 'Por favor, informe seu email.' });
+        return;
+    }
+
     setIsLoading(true);
 
-    // Simulate network delay for effect
-    setTimeout(() => {
-        if (email) {
-            login(email);
+    try {
+        // Aguarda a resposta real do Supabase
+        const success = await login(email);
+
+        if (success) {
             addToast({
                 type: 'success',
                 title: 'Acesso Autorizado',
                 message: 'Bem-vindo de volta ao Mission Control.',
                 duration: 3000
             });
+            // Redireciona apenas se o login for bem-sucedido
             navigate('/');
         } else {
             addToast({
                 type: 'error',
-                title: 'Erro de Validação',
-                message: 'Por favor, insira um email válido.',
+                title: 'Falha no Acesso',
+                message: 'Verifique se o email está correto ou se o cadastro foi realizado.',
             });
-            setIsLoading(false);
         }
-    }, 1500);
+    } catch (error) {
+        addToast({
+            type: 'error',
+            title: 'Erro de Conexão',
+            message: 'Não foi possível conectar ao servidor de autenticação.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
