@@ -11,6 +11,7 @@ interface User {
 
 interface AuthState {
   isAuthenticated: boolean;
+  isCheckingAuth: boolean;
   user: User | null;
   isLoading: boolean;
   
@@ -18,20 +19,40 @@ interface AuthState {
   register: (email: string, name: string, company: string) => Promise<boolean>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
+  setIsCheckingAuth: (loading: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  isCheckingAuth: true, // Começa true para evitar redirect prematuro
   user: null,
   isLoading: false,
 
   setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setIsCheckingAuth: (loading) => set({ isCheckingAuth: loading }),
 
   register: async (email, name, company) => {
     try {
       set({ isLoading: true });
-      // A senha padrão é usada apenas para o protótipo. 
-      // Em produção, deve haver um campo de senha no formulário.
+
+      // 1. Tentar registrar via API (Bypass de confirmação de email via Admin API se disponível)
+      try {
+        const response = await fetch('/api/create-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: 'ChangeMe123!', name, company, role: 'admin' })
+        });
+
+        if (response.ok) {
+            // Se sucesso via API, fazemos login automático
+            await get().login(email);
+            return true;
+        }
+      } catch (e) {
+        console.warn('API Registration skipped, falling back to client-side auth.');
+      }
+
+      // 2. Fallback para Auth Cliente Padrão (Pode exigir confirmação de email dependendo do projeto)
       const { data, error } = await supabase.auth.signUp({
         email,
         password: 'ChangeMe123!', 
@@ -42,9 +63,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (error) throw error;
 
-      // Se o usuário foi criado, também criamos o registro na tabela 'clients'
-      // Nota: Idealmente isso é feito via Trigger no banco, mas faremos aqui para garantir a integridade do protótipo
       if (data.user) {
+        // Tenta inserir no banco público caso o trigger não exista
         await supabase.from('clients').insert({
           id: data.user.id,
           email: email,
@@ -56,6 +76,18 @@ export const useAuthStore = create<AuthState>((set) => ({
           mrr: 0,
           metrics: { engagement: 50, support: 50, finance: 50, risk: 50 }
         });
+        
+        // Se a sessão foi criada (email confirm off), loga o usuário
+        if (data.session) {
+            get().setUser({
+                id: data.user.id,
+                email: data.user.email!,
+                name: name,
+                company: company,
+                role: 'admin'
+            });
+            return true;
+        }
       }
 
       return true;
@@ -70,7 +102,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email) => {
     try {
       set({ isLoading: true });
-      // Usando senha padrão para o fluxo simplificado do protótipo
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: 'ChangeMe123!' 

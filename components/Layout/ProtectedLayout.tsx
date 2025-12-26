@@ -6,8 +6,20 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
 const ProtectedLayout: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isCheckingAuth } = useAuthStore();
   const { isSidebarCollapsed } = useUIStore();
+
+  // Enquanto verifica a sessão, mostramos um loader elegante para não piscar a tela de login
+  if (isCheckingAuth) {
+      return (
+          <div className="min-h-screen bg-[#05080f] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-neon-cyan border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-500 text-xs tracking-widest uppercase animate-pulse">Autenticando...</p>
+              </div>
+          </div>
+      );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

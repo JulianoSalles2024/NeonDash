@@ -24,26 +24,34 @@ import SnapshotDrawer from './components/Snapshots/SnapshotDrawer';
 
 const App: React.FC = () => {
   const location = useLocation();
-  const { setUser } = useAuthStore();
+  const { setUser, setIsCheckingAuth } = useAuthStore();
   const { fetchUsers } = useUserStore();
   const { fetchAgents } = useAgentStore();
 
   useEffect(() => {
-    // 1. Verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata.name || 'Admin',
-          company: session.user.user_metadata.company || 'Neon HQ',
-          role: session.user.user_metadata.role || 'admin'
-        });
-        // Carregar dados iniciais
-        fetchUsers();
-        fetchAgents();
-      }
-    });
+    // 1. Verificar sessão atual ao carregar
+    const initSession = async () => {
+        setIsCheckingAuth(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+            setUser({
+                id: session.user.id,
+                email: session.user.email!,
+                name: session.user.user_metadata.name || 'Admin',
+                company: session.user.user_metadata.company || 'Neon HQ',
+                role: session.user.user_metadata.role || 'admin'
+            });
+            // Carregar dados iniciais em background
+            fetchUsers();
+            fetchAgents();
+        } else {
+            setUser(null);
+        }
+        setIsCheckingAuth(false);
+    };
+
+    initSession();
 
     // 2. Ouvir mudanças de auth (login, logout, refresh)
     const {
@@ -57,13 +65,16 @@ const App: React.FC = () => {
           company: session.user.user_metadata.company || 'Neon HQ',
           role: session.user.user_metadata.role || 'admin'
         });
+        setIsCheckingAuth(false);
       } else {
         setUser(null);
+        // Não setamos isCheckingAuth=false aqui imediatamente para evitar redirects
+        // durante o refresh, mas o initSession garante o estado inicial.
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [setUser, fetchUsers, fetchAgents]);
+  }, [setUser, setIsCheckingAuth, fetchUsers, fetchAgents]);
 
   return (
     <>
