@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { User, UserHealthMetrics, UserStatus } from '../types';
+import { User, UserHealthMetrics } from '../types';
 import { HealthWeights } from './useHealthStore';
 import { MOCK_USERS } from '../constants';
 
@@ -9,6 +9,7 @@ interface UserState {
   isLoading: boolean;
   error: string | null;
   hasHydrated: boolean;
+  isInitialized: boolean; // Flag para controlar se os mocks já foram carregados
   
   fetchUsers: () => Promise<void>;
   addUser: (user: Partial<User>) => Promise<void>;
@@ -37,15 +38,19 @@ export const useUserStore = create<UserState>()(
       isLoading: false,
       error: null,
       hasHydrated: false,
+      isInitialized: false,
 
       fetchUsers: async () => {
-        // Modo puramente local: Se já tem usuários carregados (persistidos), não faz nada.
-        // Se estiver vazio, carrega os Mocks.
-        const currentUsers = get().users;
-        if (currentUsers.length === 0) {
-            console.log("Carregando MOCK_USERS locais...");
-            set({ users: MOCK_USERS, hasHydrated: true });
+        const state = get();
+        
+        // CORREÇÃO: Só carrega os Mocks se a store NUNCA tiver sido inicializada antes.
+        // Se o usuário deletar todos os usuários, 'users' será [], mas 'isInitialized' será true,
+        // então não recarregaremos os mocks automaticamente.
+        if (!state.isInitialized) {
+            console.log("Primeira inicialização: Carregando dados de exemplo...");
+            set({ users: MOCK_USERS, isInitialized: true, hasHydrated: true });
         } else {
+            // Já foi inicializado anteriormente, mantemos os dados do localStorage (mesmo que vazio)
             set({ hasHydrated: true });
         }
       },
@@ -74,7 +79,8 @@ export const useUserStore = create<UserState>()(
       },
 
       resetUsers: () => {
-        set({ users: MOCK_USERS, hasHydrated: true });
+        // Função para forçar o reset manualmente (botão nas configurações)
+        set({ users: MOCK_USERS, isInitialized: true, hasHydrated: true });
       },
 
       recalculateAllScores: (weights: HealthWeights) => set((state) => {

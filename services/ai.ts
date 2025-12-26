@@ -1,5 +1,5 @@
-// MOCK AI SERVICE - Sem dependência de API KEY
-// Retorna dados simulados para não quebrar a aplicação sem configuração.
+// MOCK AI SERVICE - Totalmente offline
+// Retorna respostas pré-programadas para garantir o funcionamento da UI sem API Key.
 
 export interface AgentChatResponse {
   text: string;
@@ -11,14 +11,14 @@ export interface AgentChatResponse {
 }
 
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
-  // Simula latência
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Simula latência de rede
+  await new Promise(resolve => setTimeout(resolve, 800));
   
   const insights = [
-    "Crescimento de 12% no engajamento semanal indica forte adoção da nova feature.",
-    "Atenção: Aumento no churn de contas Starter requer revisão do onboarding.",
-    "Otimização de custos bem sucedida: uso de tokens estabilizado.",
-    "Padrão de uso sugere oportunidade de upsell para o segmento Pro."
+    "Tendência de alta: O engajamento aumentou 12% após a última atualização.",
+    "Alerta: Detectamos 3 usuários Enterprise com padrão de risco de churn.",
+    "Otimização: O custo por token reduziu 5% nas últimas 24h.",
+    "Oportunidade: Segmento 'Starter' mostra alta demanda por upgrades."
   ];
 
   return insights[Math.floor(Math.random() * insights.length)];
@@ -31,11 +31,11 @@ export const generateAgentChat = async (
   history: { role: 'user' | 'assistant'; content: string }[],
   newMessage: string
 ): Promise<AgentChatResponse> => {
-  // Simula latência
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Simula latência de processamento
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   return {
-    text: `[SIMULAÇÃO LOCAL] Recebi sua mensagem: "${newMessage}". \n\nComo estou rodando em modo offline (sem API Key), esta é uma resposta automática para validar o layout do chat. O agente ${uiModelName} está configurado com temperatura ${temperature}.`,
+    text: `[RESPOSTA LOCAL] Recebi sua mensagem: "${newMessage}". \n\nEstou operando em modo offline para desenvolvimento. O agente ${uiModelName} (Temp: ${temperature}) responderia aqui normalmente.`,
     usage: {
       totalTokens: 150,
       promptTokens: 50,

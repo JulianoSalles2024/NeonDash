@@ -1,6 +1,5 @@
-// Supabase removido conforme solicitado.
-// Este arquivo permanece apenas para evitar erros de importação em arquivos não migrados, 
-// mas não executa nenhuma conexão real.
+// MOCK SUPABASE - Modo Offline/Local
+// Impede erros ao tentar conectar sem credenciais.
 
 export const supabase = {
   from: () => ({
@@ -9,12 +8,15 @@ export const supabase = {
     update: () => Promise.resolve({ data: null, error: null }),
     delete: () => Promise.resolve({ data: null, error: null }),
     upsert: () => Promise.resolve({ data: null, error: null }),
+    eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) })
   }),
   auth: {
     admin: {
       createUser: () => Promise.resolve({ data: { user: null }, error: null }),
       inviteUserByEmail: () => Promise.resolve({ data: { user: null }, error: null }),
       deleteUser: () => Promise.resolve({ error: null })
-    }
+    },
+    signInWithPassword: () => Promise.resolve({ data: { user: { id: 'mock-user' } }, error: null }),
+    signOut: () => Promise.resolve({ error: null })
   }
 };

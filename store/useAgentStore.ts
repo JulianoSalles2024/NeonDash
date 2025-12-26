@@ -7,6 +7,7 @@ interface AgentState {
   agents: Agent[];
   isLoading: boolean;
   hasHydrated: boolean;
+  isInitialized: boolean; // Flag de controle
   
   fetchAgents: () => Promise<void>;
   addAgent: (agent: Agent) => Promise<void>;
@@ -21,11 +22,13 @@ export const useAgentStore = create<AgentState>()(
       agents: [],
       isLoading: false,
       hasHydrated: false,
+      isInitialized: false,
 
       fetchAgents: async () => {
-          const currentAgents = get().agents;
-          if (currentAgents.length === 0) {
-              set({ agents: MOCK_AGENTS, hasHydrated: true });
+          const state = get();
+          
+          if (!state.isInitialized) {
+              set({ agents: MOCK_AGENTS, isInitialized: true, hasHydrated: true });
           } else {
               set({ hasHydrated: true });
           }
@@ -49,7 +52,7 @@ export const useAgentStore = create<AgentState>()(
         }));
       },
 
-      resetAgents: () => set({ agents: MOCK_AGENTS }),
+      resetAgents: () => set({ agents: MOCK_AGENTS, isInitialized: true }),
     }),
     {
       name: 'neondash-agents-storage', 
