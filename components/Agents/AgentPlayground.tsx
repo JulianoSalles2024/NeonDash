@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins } from 'lucide-react';
+import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins, AlignLeft } from 'lucide-react';
 import { Agent } from '../../types';
 import { generateAgentChat } from '../../services/ai';
 import { useToastStore } from '../../store/useToastStore';
@@ -15,7 +15,9 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const [systemPrompt, setSystemPrompt] = useState('');
     const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [metrics, setMetrics] = useState<{latency: number, tokens: number, cost: number} | null>(null);
+    
+    // Updated metrics state to include charCount
+    const [metrics, setMetrics] = useState<{latency: number, tokens: number, cost: number, charCount: number} | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initialize/Reset
@@ -32,6 +34,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
         if (!prompt.trim()) return;
 
         const currentPrompt = prompt;
+        const promptLength = currentPrompt.length; // Capture length before clearing
         const newUserMsg = { role: 'user' as const, content: currentPrompt };
         
         // Optimistic update
@@ -68,7 +71,8 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             setMetrics({
                 latency,
                 tokens: response.usage.totalTokens,
-                cost: totalCost
+                cost: totalCost,
+                charCount: promptLength // Store character count
             });
 
         } catch (error) {
@@ -123,20 +127,27 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                             placeholder="Instruções do sistema..."
                         />
                     </div>
-                    <div className="flex-1 p-4 flex flex-col">
+                    <div className="flex-1 p-4 flex flex-col relative">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Input do Usuário</label>
-                        <textarea 
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            className="flex-1 w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none mb-4"
-                            placeholder="Digite seu prompt de teste aqui..."
-                            onKeyDown={(e) => {
-                                if(e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleRun();
-                                }
-                            }}
-                        />
+                        <div className="relative flex-1 mb-4">
+                            <textarea 
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                className="w-full h-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none pb-8" // Padding bottom for counter
+                                placeholder="Digite seu prompt de teste aqui..."
+                                onKeyDown={(e) => {
+                                    if(e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleRun();
+                                    }
+                                }}
+                            />
+                            {/* Live Character Counter inside Textarea area */}
+                            <div className="absolute bottom-2 right-3 text-[10px] text-gray-500 font-mono pointer-events-none bg-black/50 px-1 rounded">
+                                {prompt.length} caracteres
+                            </div>
+                        </div>
+                        
                         <button 
                             onClick={handleRun}
                             disabled={isLoading || !prompt.trim()}
@@ -154,9 +165,13 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
                 {/* Right Column: Output & Metrics */}
                 <div className="w-2/3 flex flex-col bg-[#0B0F1A] relative">
-                        {/* Metrics Overlay */}
+                        {/* Metrics Overlay - Now includes Character Count */}
                         {metrics && (
                         <div className="absolute top-4 right-4 flex gap-3 z-10 animate-in slide-in-from-top-2 fade-in">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-xs text-white font-mono backdrop-blur-md shadow-lg">
+                                <AlignLeft size={12} className="text-gray-300" /> 
+                                <span className="font-bold text-neon-cyan">{metrics.charCount}</span> chars
+                            </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-purple/10 border border-neon-purple/30 rounded-lg text-xs text-neon-purple font-mono backdrop-blur-md">
                                 <Cpu size={12} /> {metrics.tokens} toks
                             </div>

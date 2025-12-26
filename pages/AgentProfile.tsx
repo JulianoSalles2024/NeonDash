@@ -10,6 +10,7 @@ import AgentPlayground from '../components/Agents/AgentPlayground';
 import AgentLogs from '../components/Agents/AgentLogs';
 import { useToastStore } from '../store/useToastStore';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
+import PageTransition from '../components/ui/PageTransition';
 
 const AgentProfile: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -17,7 +18,6 @@ const AgentProfile: React.FC = () => {
     const { agents, updateAgent } = useAgentStore();
     const { addToast } = useToastStore();
     
-    // Removed isPlaygroundOpen state as it's now a tab
     const [isConfigOpen, setIsConfigOpen] = useState(false);
 
     const agent = agents.find(a => a.id === id);
@@ -46,10 +46,14 @@ const AgentProfile: React.FC = () => {
         }
     };
 
-    const handleCopyPrompt = () => {
+    const handleCopyPrompt = async () => {
         if (agent?.systemPrompt) {
-            navigator.clipboard.writeText(agent.systemPrompt);
-            addToast({ type: 'success', title: 'Copiado!', message: 'System Prompt copiado para a área de transferência.' });
+            try {
+                await navigator.clipboard.writeText(agent.systemPrompt);
+                addToast({ type: 'success', title: 'Copiado!', message: 'System Prompt copiado para a área de transferência.' });
+            } catch (err) {
+                addToast({ type: 'error', title: 'Erro', message: 'Falha ao copiar. Permissão negada ou contexto inseguro.' });
+            }
         }
     };
 
@@ -118,7 +122,7 @@ const AgentProfile: React.FC = () => {
     };
 
     return (
-        <div className="p-6 max-w-[1600px] mx-auto pb-20">
+        <PageTransition className="p-6 max-w-[1600px] mx-auto pb-20">
             {/* Config Modal */}
             {isConfigOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -274,7 +278,8 @@ const AgentProfile: React.FC = () => {
                 <TabsContent value="monitoramento">
                      {/* KPI Grid (Compacted) */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-between h-24 relative group overflow-hidden">
+                        {/* Metrics Cards... */}
+                         <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-between h-24 relative group overflow-hidden">
                             <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity text-neon-blue">
                                 <Zap size={64} />
                             </div>
@@ -417,7 +422,7 @@ const AgentProfile: React.FC = () => {
                                 </h3>
                                 <button 
                                     onClick={handleCopyPrompt}
-                                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-400 hover:text-neon-cyan hover:border-neon-cyan/30 transition-all"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-neon-cyan/5 border border-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan/10 hover:border-neon-cyan/50 transition-all shadow-[0_0_10px_rgba(124,252,243,0.1)]"
                                 >
                                     <Copy size={12} /> Copiar
                                 </button>
@@ -456,7 +461,7 @@ const AgentProfile: React.FC = () => {
                     </div>
                 </TabsContent>
             </Tabs>
-        </div>
+        </PageTransition>
     );
 };
 

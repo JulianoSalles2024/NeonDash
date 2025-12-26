@@ -67,7 +67,7 @@ const Sidebar: React.FC = () => {
       {/* Sidebar Container */}
       <aside 
         className={`
-          fixed top-0 left-0 h-screen bg-dark-bg border-r border-white/5 flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+          fixed top-0 left-0 h-screen bg-dark-bg border-r border-white/5 flex flex-col z-[100] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]
           ${isMobileMenuOpen ? 'translate-x-0 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : '-translate-x-full'}
           md:translate-x-0
           ${isSidebarCollapsed ? 'w-20' : 'w-64'}

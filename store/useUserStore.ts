@@ -110,7 +110,7 @@ export const useUserStore = create<UserState>()(
       })
     }),
     {
-      name: 'neondash-users-storage',
+      name: 'neondash-users-storage-v3', // Version bump to wipe old mock data
       storage: createJSONStorage(() => localStorage),
     }
   )
