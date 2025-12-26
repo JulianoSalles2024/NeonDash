@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bot, Zap, Activity, Coins, Clock, AlertTriangle, Terminal, GitBranch, Play, Settings, Cpu, ScrollText, Check, X, Sliders, Gamepad2, ArrowDown, Tag } from 'lucide-react';
+import { ArrowLeft, Bot, Zap, Activity, Coins, Clock, AlertTriangle, Terminal, GitBranch, Play, Settings, Cpu, ScrollText, Check, X, Sliders, Gamepad2, ArrowDown, Tag, Copy } from 'lucide-react';
 import Card from '../components/ui/Card';
 import { AgentStatus, AgentVersion, Agent } from '../types';
 import { useAgentStore } from '../store/useAgentStore';
@@ -43,6 +43,13 @@ const AgentProfile: React.FC = () => {
             updateAgent(agent.id, configForm);
             addToast({ type: 'success', title: 'Agente Reconfigurado', message: 'Novos parâmetros de comportamento aplicados.' });
             setIsConfigOpen(false);
+        }
+    };
+
+    const handleCopyPrompt = () => {
+        if (agent?.systemPrompt) {
+            navigator.clipboard.writeText(agent.systemPrompt);
+            addToast({ type: 'success', title: 'Copiado!', message: 'System Prompt copiado para a área de transferência.' });
         }
     };
 
@@ -404,9 +411,17 @@ const AgentProfile: React.FC = () => {
                      <div className="max-w-4xl">
                         {/* System Prompt Preview (Real Data) */}
                         <Card className="mb-6 border-l-4 border-l-neon-cyan">
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <Terminal size={14} /> System Prompt Atual
-                            </h3>
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Terminal size={14} /> System Prompt Atual
+                                </h3>
+                                <button 
+                                    onClick={handleCopyPrompt}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-400 hover:text-neon-cyan hover:border-neon-cyan/30 transition-all"
+                                >
+                                    <Copy size={12} /> Copiar
+                                </button>
+                            </div>
                             <div className="bg-black/30 rounded p-4 border border-white/10 font-mono text-xs text-gray-300 whitespace-pre-wrap">
                                 {agent.systemPrompt || "Nenhum prompt definido."}
                             </div>
