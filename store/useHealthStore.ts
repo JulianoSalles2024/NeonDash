@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface HealthFactors {
   engagement: number;
@@ -51,28 +52,42 @@ const calculateScore = (factors: HealthFactors, weights: HealthWeights) => {
     return Math.round(weightedSum / totalWeight);
 };
 
-export const useHealthStore = create<HealthState>((set, get) => ({
-  factors: DEFAULT_FACTORS,
-  weights: DEFAULT_WEIGHTS,
-  globalScore: calculateScore(DEFAULT_FACTORS, DEFAULT_WEIGHTS),
-  isEditingWeights: false,
+export const useHealthStore = create<HealthState>()(
+  persist(
+    (set, get) => ({
+      factors: DEFAULT_FACTORS,
+      weights: DEFAULT_WEIGHTS,
+      globalScore: calculateScore(DEFAULT_FACTORS, DEFAULT_WEIGHTS),
+      isEditingWeights: false,
 
-  toggleEditWeights: () => set((state) => ({ isEditingWeights: !state.isEditingWeights })),
+      toggleEditWeights: () => set((state) => ({ isEditingWeights: !state.isEditingWeights })),
 
-  setWeight: (key, value) => {
-      const { factors, weights } = get();
-      const newWeights = { ...weights, [key]: value };
-      set({
-          weights: newWeights,
-          globalScore: calculateScore(factors, newWeights)
-      });
-  },
+      setWeight: (key, value) => {
+          const { factors, weights } = get();
+          const newWeights = { ...weights, [key]: value };
+          set({
+              weights: newWeights,
+              globalScore: calculateScore(factors, newWeights)
+          });
+      },
 
-  resetDefaults: () => {
-      set({
-          factors: DEFAULT_FACTORS,
-          weights: DEFAULT_WEIGHTS,
-          globalScore: calculateScore(DEFAULT_FACTORS, DEFAULT_WEIGHTS)
-      });
-  }
-}));
+      resetDefaults: () => {
+          set({
+              factors: DEFAULT_FACTORS,
+              weights: DEFAULT_WEIGHTS,
+              globalScore: calculateScore(DEFAULT_FACTORS, DEFAULT_WEIGHTS)
+          });
+      }
+    }),
+    {
+      name: 'neondash-health-engine', // Nome único para salvar no LocalStorage
+      storage: createJSONStorage(() => localStorage),
+      // Opcional: não persistir o estado de edição (isEditingWeights), apenas os dados
+      partialize: (state) => ({ 
+          factors: state.factors, 
+          weights: state.weights, 
+          globalScore: state.globalScore 
+      }),
+    }
+  )
+);
