@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { User, UserHealthMetrics, UserStatus, UserEvent, SuccessJourney } from '../types';
+import { User, UserHealthMetrics, UserStatus, UserEvent, SuccessJourney, JourneyStep } from '../types';
 import { HealthWeights } from './useHealthStore';
 import { useEventStore } from './useEventStore';
 
@@ -43,12 +43,13 @@ const pseudoRandom = (seed: string) => {
 
 // Mock Journey Generator
 const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
-    const steps = [
-        { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: true, completedAt: '2023-10-01', isAutomated: true },
-        { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: true, completedAt: '2023-10-03', isAutomated: true },
-        { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
-        { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
-        { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+    // Passos atualizados conforme o Plano de Ação real
+    const steps: JourneyStep[] = [
+        { id: '1', label: 'Setup Inicial & Convite', description: 'Configuração da conta e convite da equipe.', isCompleted: false, isAutomated: true },
+        { id: '2', label: 'Integração de Dados', description: 'Conexão com fontes de dados externas.', isCompleted: false, isAutomated: true },
+        { id: '3', label: 'Primeira Automação', description: 'Lançamento do primeiro agente em produção.', isCompleted: false, isAutomated: false },
+        { id: '4', label: 'Otimização de ROI', description: 'Ajuste fino para atingir métricas ideais.', isCompleted: false, isAutomated: false },
+        { id: '5', label: 'Expansão (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
     ];
 
     // Adjust based on user status simulating progress
@@ -56,39 +57,38 @@ const generateMockJourney = (status: UserStatus, userId: string = 'default'): Su
         // Use ID to determine progress deterministically so it doesn't jump on refresh
         const rand = pseudoRandom(userId);
         
-        if (rand > 0.75) {
-            // 25% chance of Fully Achieved
-            steps.forEach(s => { s.isCompleted = true; s.completedAt = '2023-10-15' });
-        } else if (rand > 0.4) {
-            // 35% chance of up to Step 4 (Value Generated)
+        if (rand > 0.80) {
+            // 20% chance of Fully Achieved
+            steps.forEach(s => { s.isCompleted = true; s.completedAt = '2025-01-15' });
+        } else if (rand > 0.60) {
+            // Step 4 done (ROI)
             steps[0].isCompleted = true;
             steps[1].isCompleted = true;
             steps[2].isCompleted = true;
             steps[3].isCompleted = true;
-        } else {
-            // 40% chance of up to Step 3 (Execution)
+        } else if (rand > 0.40) {
+            // Step 3 done (Automação)
             steps[0].isCompleted = true;
             steps[1].isCompleted = true;
             steps[2].isCompleted = true;
+        } else if (rand > 0.20) {
+            // Step 2 done (Integração)
+            steps[0].isCompleted = true;
+            steps[1].isCompleted = true;
+        } else {
+            // Step 1 done (Setup)
+            steps[0].isCompleted = true;
         }
     } else if (status === UserStatus.RISK) {
-        // Stuck at step 2
+        // Stuck usually at early stages
         steps[0].isCompleted = true;
-        steps[1].isCompleted = true;
-        steps[2].isCompleted = false;
-        steps[3].isCompleted = false;
-        steps[4].isCompleted = false;
+        steps[1].isCompleted = false;
     } else if (status === UserStatus.NEW) {
-        // Just started
-        steps[0].isCompleted = true;
-        steps[1].isCompleted = false;
-        steps[2].isCompleted = false;
-        steps[3].isCompleted = false;
-        steps[4].isCompleted = false;
+        // Just started, maybe step 1 done
+        steps[0].isCompleted = Math.random() > 0.5;
     } else {
-        // Churned or Ghost - minimal progress usually
+        // Churned or Ghost - minimal progress
         steps[0].isCompleted = true;
-        steps[1].isCompleted = false;
     }
 
     const completedCount = steps.filter(s => s.isCompleted).length;
