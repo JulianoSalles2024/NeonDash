@@ -242,11 +242,13 @@ const UsersPage: React.FC = () => {
             addToast({ type: 'success', title: 'Novo Usuário Criado', message: `${formData.name} adicionado.` });
         }
         setIsFormOpen(false);
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Save error:", error);
+        // Exibe a mensagem real do erro para debug (ex: Column not found)
         addToast({ 
             type: 'error', 
             title: 'Erro ao Salvar', 
-            message: 'Não foi possível salvar os dados. Verifique a conexão ou tente novamente.' 
+            message: error.message || 'Erro desconhecido ao comunicar com o banco de dados.' 
         });
       } finally {
         setIsSaving(false);

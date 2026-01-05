@@ -127,52 +127,46 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUser: async (id, changes) => {
     try {
-      // Cria objeto de update para DB
-      const dbChanges: any = { ...changes };
+      // WHITELIST STRATEGY: Construímos um objeto APENAS com campos permitidos.
+      // Isso evita que campos de UI (como avatar, tokensUsed) quebrem o update no Supabase.
+      const dbPayload: any = {};
+
+      if (changes.name !== undefined) dbPayload.name = changes.name;
+      if (changes.company !== undefined) dbPayload.company = changes.company;
+      if (changes.email !== undefined) dbPayload.email = changes.email;
+      if (changes.status !== undefined) dbPayload.status = changes.status;
+      if (changes.plan !== undefined) dbPayload.plan = changes.plan;
+      if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
+      if (changes.metrics !== undefined) dbPayload.metrics = changes.metrics;
       
-      // 1. Tratamento de Data (Timezone Fix)
-      // Se a data vier como 'YYYY-MM-DD', adicionamos T12:00:00Z para fixar no meio do dia UTC.
+      // Campos mapeados (camelCase -> snake_case)
+      if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
+      if (typeof changes.isTest === 'boolean') dbPayload.is_test = changes.isTest;
+      
+      // Tratamento de Data (Timezone Fix)
       if (changes.joinedAt) {
           if (changes.joinedAt.length === 10) {
-              dbChanges.created_at = `${changes.joinedAt}T12:00:00Z`;
+              // Se vier do input date (YYYY-MM-DD), adicionamos hora fixa
+              dbPayload.created_at = `${changes.joinedAt}T12:00:00Z`;
           } else {
-              dbChanges.created_at = changes.joinedAt;
+              dbPayload.created_at = changes.joinedAt;
           }
       }
 
-      // 2. Mapeamento snake_case
-      if (typeof changes.isTest === 'boolean') {
-          dbChanges.is_test = changes.isTest;
-      }
-      if (changes.healthScore !== undefined) {
-          dbChanges.health_score = changes.healthScore;
-      }
-      
-      // 3. Limpeza de campos frontend-only ou readonly
-      delete dbChanges.isTest;
-      delete dbChanges.joinedAt;
-      delete dbChanges.healthScore;
-      delete dbChanges.lastActive;
-      delete dbChanges.avatar;
-      delete dbChanges.tokensUsed;
-      delete dbChanges.id; 
-
       const { error } = await supabase
         .from('clients')
-        .update(dbChanges)
+        .update(dbPayload)
         .eq('id', id);
 
       if (error) throw error;
 
-      // 4. Atualiza estado local
-      // Precisamos garantir que o estado local reflita a data formatada, 
-      // mas como o 'fetchUsers' trará o valor real depois, aqui atualizamos com o input para feedback imediato.
+      // Atualiza estado local imediatamente (Optimistic UI)
       set((state) => ({
         users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
       }));
     } catch (err) {
       console.error('Error updating user:', err);
-      throw err; // Relança para a UI tratar
+      throw err; // Relança para a UI exibir a mensagem exata
     }
   },
 
