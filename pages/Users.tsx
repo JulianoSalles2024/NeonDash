@@ -195,7 +195,7 @@ const UsersPage: React.FC = () => {
 
       setFormData({ 
           ...user, 
-          isTest: user.isTest || false,
+          isTest: !!user.isTest, // Garante boolean
           joinedAt: safeDate
       });
       setIsFormOpen(true);
