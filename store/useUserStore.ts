@@ -301,11 +301,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.metrics) {
           newMetricsBase = { ...newMetricsBase, ...changes.metrics };
       }
-
-      // Handle Journey Updates
-      if (changes.journey) {
-          newMetricsBase.journey = changes.journey;
-      }
           
       let finalChurnReason = changes.churnReason;
       if (changes.status && changes.status !== UserStatus.CHURNED) {
@@ -314,10 +309,14 @@ export const useUserStore = create<UserState>((set, get) => ({
           finalChurnReason = currentUser.churnReason;
       }
 
+      // Determine the journey to persist.
+      const finalJourney = changes.journey || currentUser.journey;
+
       dbPayload.metrics = {
           ...newMetricsBase,
           churnReason: finalChurnReason,
-          history: updatedHistory
+          history: updatedHistory,
+          journey: finalJourney
       };
       
       if (changes.joinedAt) {
