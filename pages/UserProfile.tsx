@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { COLORS } from '../constants';
 import { useUserStore } from '../store/useUserStore';
-import { User, SuccessJourney, JourneyStep } from '../types';
+import { User, SuccessJourney, JourneyStep, UserStatus } from '../types';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToastStore } from '../store/useToastStore';
@@ -29,6 +29,71 @@ const UserProfile: React.FC = () => {
           setTempGoal(user.journey.coreGoal);
       }
   }, [user]);
+
+  // --- CHART DATA GENERATION (REALISTIC SIMULATION) ---
+  const healthHistory = useMemo(() => {
+      if (!user) return [];
+
+      const currentScore = user.healthScore || 0;
+      const riskMetric = user.metrics?.risk || 50;
+      const engagementMetric = user.metrics?.engagement || 50;
+      
+      // Determine Trend based on Status and Journey
+      let trendFactor = 0; // 0 = stable, positive = improving, negative = declining
+      if (user.status === UserStatus.RISK || user.status === UserStatus.CHURNED) trendFactor = -2.5;
+      else if (user.status === UserStatus.NEW) trendFactor = 1.5;
+      else if (user.status === UserStatus.ACTIVE) trendFactor = 0.5;
+
+      // Journey Bonus: Completed steps stabilize or improve score
+      const journeyCompleted = user.journey?.steps.filter(s => s.isCompleted).length || 0;
+      if (journeyCompleted > 2) trendFactor += 0.5;
+
+      const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Hoje'];
+      const history = [];
+
+      // Generate 7 days back from current score
+      for (let i = 6; i >= 0; i--) {
+          const dayLabel = days[6 - i]; // Reverse index for label
+          
+          if (i === 0) {
+              // Today matches current score exactly
+              history.push({ name: dayLabel, value: currentScore });
+          } else {
+              // Calculate past days
+              // "i" is how many days back. 
+              // If trend is positive (+), past was lower. Score = Current - (i * trend)
+              // If trend is negative (-), past was higher. Score = Current - (i * trend) -> minus negative is plus
+              
+              let basePast = currentScore - (trendFactor * i * 3); 
+              
+              // Add volatility based on Risk Metric (Low risk metric = High Volatility/Danger)
+              // If Risk metric is 100 (Safe), vol is low. If 20 (Danger), vol is high.
+              const volatility = (100 - riskMetric) / 5; 
+              const randomVar = (Math.random() - 0.5) * volatility * i;
+
+              let finalVal = Math.round(basePast + randomVar);
+              finalVal = Math.max(0, Math.min(100, finalVal)); // Clamp 0-100
+
+              history.unshift({ name: dayLabel, value: finalVal });
+          }
+      }
+      return history;
+  }, [user]);
+
+  // Calculate Trend Percentage for Display
+  const healthTrend = useMemo(() => {
+      if (healthHistory.length < 2) return { value: 0, direction: 'neutral' };
+      const start = healthHistory[0].value;
+      const end = healthHistory[healthHistory.length - 1].value;
+      const diff = end - start;
+      const percent = start === 0 ? 100 : (diff / start) * 100;
+      
+      return {
+          value: Math.abs(percent).toFixed(1),
+          direction: diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral',
+          sign: diff > 0 ? '+' : diff < 0 ? '-' : ''
+      };
+  }, [healthHistory]);
 
   if (!user) {
     return (
@@ -125,13 +190,6 @@ const UserProfile: React.FC = () => {
       const d = new Date(dateStr);
       return !isNaN(d.getTime()) ? d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : dateStr;
   };
-
-  // Mock mini chart data specifically for this user view
-  const USER_ACTIVITY_DATA = [
-      { name: 'Seg', value: 20 }, { name: 'Ter', value: 45 }, { name: 'Qua', value: 30 }, 
-      { name: 'Qui', value: 50 }, { name: 'Sex', value: 80 }, { name: 'Sab', value: 65 }, 
-      { name: 'Dom', value: user.healthScore }
-  ];
 
   const MetricPill = ({ label, value, color, icon: Icon }: any) => (
     <div className="flex flex-col p-3 rounded-lg bg-white/5 border border-white/5">
@@ -282,29 +340,32 @@ const UserProfile: React.FC = () => {
                 {/* Stats Chart */}
                 <Card className="col-span-1 md:col-span-2 lg:col-span-8 min-h-[300px]">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-medium text-white">Engajamento Semanal</h3>
-                        <span className="px-2 py-1 bg-neon-cyan/10 text-neon-cyan text-xs font-bold rounded border border-neon-cyan/20">+12% vs anterior</span>
+                        <h3 className="text-lg font-medium text-white">Evolução de Saúde & Sucesso</h3>
+                        <span className={`px-2 py-1 rounded text-xs font-bold border ${healthTrend.direction === 'up' ? 'bg-neon-green/10 text-neon-green border-neon-green/20' : healthTrend.direction === 'down' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-white/5 text-gray-400 border-white/10'}`}>
+                            {healthTrend.sign}{healthTrend.value}% vs semana anterior
+                        </span>
                     </div>
                     <div className="h-[250px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={USER_ACTIVITY_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <AreaChart data={healthHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorOverview" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.cyan} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={COLORS.cyan} stopOpacity={0}/>
+                                        <stop offset="5%" stopColor={healthTrend.direction === 'down' ? COLORS.pink : COLORS.cyan} stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor={healthTrend.direction === 'down' ? COLORS.pink : COLORS.cyan} stopOpacity={0}/>
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} domain={[0, 100]} />
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: '#0B0F1A', borderColor: '#374151', color: '#fff' }}
                                     cursor={{stroke: 'rgba(255,255,255,0.1)'}} 
+                                    formatter={(value: number) => [value, 'Score']}
                                 />
                                 <Area 
                                     type="monotone" 
                                     dataKey="value" 
-                                    stroke={COLORS.cyan} 
+                                    stroke={healthTrend.direction === 'down' ? COLORS.pink : COLORS.cyan} 
                                     strokeWidth={3}
                                     fill="url(#colorOverview)"
                                     animationDuration={1000}
@@ -347,17 +408,19 @@ const UserProfile: React.FC = () => {
                         </div>
                     </Card>
 
-                    <Card className="border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent">
+                    <Card className={`border ${user.healthScore < 40 ? 'border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent' : 'border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent'}`}>
                         <div className="flex items-start gap-3">
-                            <div className="p-2 bg-red-500/20 rounded-lg text-red-400 shrink-0">
+                            <div className={`p-2 rounded-lg shrink-0 ${user.healthScore < 40 ? 'bg-red-500/20 text-red-400' : 'bg-neon-cyan/20 text-neon-cyan'}`}>
                                 <AlertTriangle size={20} />
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-red-400 mb-1">Análise de Risco</p>
+                                <p className={`text-sm font-bold mb-1 ${user.healthScore < 40 ? 'text-red-400' : 'text-neon-cyan'}`}>
+                                    {user.healthScore < 40 ? 'Análise de Risco: Crítico' : 'Análise de Risco: Estável'}
+                                </p>
                                 <p className="text-xs text-gray-400 leading-relaxed">
                                     {user.healthScore < 40 
-                                        ? "Usuário crítico. O score financeiro ou de risco está puxando a média para baixo drasticamente." 
-                                        : "O padrão de uso é estável, mas monitore as métricas de engajamento."}
+                                        ? "O score de saúde caiu drasticamente. O engajamento ou risco financeiro está puxando a média para baixo. Verifique os tickets de suporte." 
+                                        : `O engajamento é ${metrics.engagement > 70 ? 'alto' : 'moderado'} e a jornada está ${journey.status === 'in_progress' ? 'evoluindo' : 'estável'}. Mantenha o acompanhamento.`}
                                 </p>
                             </div>
                         </div>
