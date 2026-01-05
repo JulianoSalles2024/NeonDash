@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HealthScore from '../components/Dashboard/HealthScore';
 import MetricCard from '../components/Dashboard/MetricCard';
-import AIStrip from '../components/Dashboard/AIStrip';
+// import AIStrip from '../components/Dashboard/AIStrip'; // Removed import
 import Card from '../components/ui/Card';
 import PageTransition from '../components/ui/PageTransition';
 import { COLORS } from '../constants';
@@ -140,7 +140,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <AIStrip />
+      {/* AIStrip removed here */}
 
       {activeTab === 'overview' ? (
         /* --- OVERVIEW TAB CONTENT --- */
