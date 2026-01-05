@@ -41,57 +41,70 @@ const pseudoRandom = (seed: string) => {
     return x - Math.floor(x);
 };
 
-// Mock Journey Generator
+// CONSTANTE COM OS TEXTOS DEFINITIVOS
+const JOURNEY_TEMPLATE: JourneyStep[] = [
+    { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: false, isAutomated: true },
+    { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: false, isAutomated: true },
+    { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
+    { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
+    { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+];
+
+// Função que mescla o estado salvo no banco (checkboxes) com os novos textos (labels)
+const mergeJourneyData = (savedJourney: SuccessJourney | undefined, userId: string, userStatus: UserStatus): SuccessJourney => {
+    // Se não tem jornada salva, gera uma nova baseada no status
+    if (!savedJourney) {
+        return generateMockJourney(userStatus, userId);
+    }
+
+    // Se tem jornada salva, atualizamos os textos mas mantemos o status de concluído
+    const updatedSteps = JOURNEY_TEMPLATE.map(templateStep => {
+        // Tenta achar o passo correspondente salvo (pelo ID)
+        const savedStep = savedJourney.steps.find(s => s.id === templateStep.id);
+        
+        return {
+            ...templateStep, // Usa Label e Descrição novos
+            isCompleted: savedStep ? savedStep.isCompleted : templateStep.isCompleted, // Mantém status salvo
+            completedAt: savedStep ? savedStep.completedAt : undefined
+        };
+    });
+
+    return {
+        ...savedJourney,
+        steps: updatedSteps
+    };
+};
+
+// Mock Journey Generator (Initial State)
 const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
-    // Passos atualizados conforme solicitação: Ativação -> Estruturação -> Execução -> Valor -> Escala
-    const steps: JourneyStep[] = [
-        { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: false, isAutomated: true },
-        { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: false, isAutomated: true },
-        { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
-        { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
-        { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
-    ];
+    // Clona o template
+    const steps = JSON.parse(JSON.stringify(JOURNEY_TEMPLATE));
 
     // Adjust based on user status simulating progress
     if (status === UserStatus.ACTIVE) {
-        // Use ID to determine progress deterministically so it doesn't jump on refresh
         const rand = pseudoRandom(userId);
         
         if (rand > 0.80) {
-            // 20% chance of Fully Achieved (Escala)
-            steps.forEach(s => { s.isCompleted = true; s.completedAt = '2025-01-15' });
+            steps.forEach((s: any) => { s.isCompleted = true; s.completedAt = '2025-01-15' });
         } else if (rand > 0.60) {
-            // Step 4 done (Valor Gerado)
-            steps[0].isCompleted = true;
-            steps[1].isCompleted = true;
-            steps[2].isCompleted = true;
-            steps[3].isCompleted = true;
+            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true; steps[3].isCompleted = true;
         } else if (rand > 0.40) {
-            // Step 3 done (Execução Assistida)
-            steps[0].isCompleted = true;
-            steps[1].isCompleted = true;
-            steps[2].isCompleted = true;
+            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true;
         } else if (rand > 0.20) {
-            // Step 2 done (Estruturação)
-            steps[0].isCompleted = true;
-            steps[1].isCompleted = true;
+            steps[0].isCompleted = true; steps[1].isCompleted = true;
         } else {
-            // Step 1 done (Ativação)
             steps[0].isCompleted = true;
         }
     } else if (status === UserStatus.RISK) {
-        // Stuck usually at early stages
         steps[0].isCompleted = true;
         steps[1].isCompleted = false;
     } else if (status === UserStatus.NEW) {
-        // Just started, maybe step 1 done
         steps[0].isCompleted = Math.random() > 0.5;
     } else {
-        // Churned or Ghost - minimal progress
         steps[0].isCompleted = true;
     }
 
-    const completedCount = steps.filter(s => s.isCompleted).length;
+    const completedCount = steps.filter((s: any) => s.isCompleted).length;
     const journeyStatus = completedCount === 0 ? 'not_started' : completedCount === 5 ? 'achieved' : 'in_progress';
 
     return {
@@ -208,8 +221,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         isTest: u.is_test || false,
         churnReason: u.metrics?.churnReason || '',
         history: u.metrics?.history || [],
-        // Inject Journey if missing in DB (Mock for now, using ID for deterministic random)
-        journey: u.metrics?.journey || generateMockJourney(u.status as UserStatus, u.id)
+        // FORÇA A ATUALIZAÇÃO DOS TEXTOS DA JORNADA, mantendo o status salvo
+        journey: mergeJourneyData(u.metrics?.journey, u.id, u.status as UserStatus)
       }));
 
       set({ users: formattedUsers });
