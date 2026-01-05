@@ -96,8 +96,10 @@ const UsersPage: React.FC = () => {
   const riskUsers = users.filter(u => u.status === UserStatus.RISK).length;
   
   // Calculate Average Engagement
+  // Filtrar apenas usuários REAIS e NÃO CANCELADOS para a média de engajamento
+  const validEngagementUsers = users.filter(u => !u.isTest && u.status !== UserStatus.CHURNED);
   const avgEngagement = Math.round(
-    users.reduce((acc, u) => acc + (u.metrics?.engagement || 0), 0) / (totalUsers || 1)
+    validEngagementUsers.reduce((acc, u) => acc + (u.metrics?.engagement || 0), 0) / (validEngagementUsers.length || 1)
   );
 
   // Calculate ARPU (Average Revenue Per User) - "Média Planos"
@@ -651,7 +653,7 @@ const UsersPage: React.FC = () => {
             )}
         </Card>
 
-        {/* --- MODAL DE EDIÇÃO PRINCIPAL --- */}
+        {/* ... MODALS ... */}
         {isFormOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="w-full max-w-md bg-[#111625] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
@@ -809,7 +811,7 @@ const UsersPage: React.FC = () => {
             </div>
         )}
 
-        {/* --- MODAL DE ÚLTIMO ACESSO (MANUAL) --- */}
+        {/* ... ACCESS MODAL ... */}
         {isAccessModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="w-full max-w-sm bg-[#111625] border border-white/10 rounded-xl shadow-[0_0_30px_rgba(124,252,243,0.1)] overflow-hidden">

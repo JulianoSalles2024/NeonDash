@@ -251,7 +251,18 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.lastActive !== undefined) dbPayload.last_active = changes.lastActive;
 
       const currentMetrics = currentUser.metrics || ensureMetrics(null, 100);
-      const newMetricsBase = changes.metrics || currentMetrics;
+      let newMetricsBase = { ...currentMetrics };
+      
+      // LOGIC: Boost Engagement on Activity
+      if (changes.lastActive) {
+          // If the user logs in/is active, boost engagement score
+          newMetricsBase.engagement = Math.min(100, (newMetricsBase.engagement || 50) + 5);
+      }
+      
+      // Override with manual changes if present
+      if (changes.metrics) {
+          newMetricsBase = { ...newMetricsBase, ...changes.metrics };
+      }
           
       let finalChurnReason = changes.churnReason;
       if (changes.status && changes.status !== UserStatus.CHURNED) {
@@ -285,6 +296,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         users: state.users.map((u) => u.id === id ? { 
             ...u, 
             ...changes,
+            // Ensure we update the local state metric immediately for UI feedback
+            metrics: newMetricsBase, 
             history: updatedHistory 
         } : u)
       }));
