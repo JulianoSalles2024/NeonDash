@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { User, UserHealthMetrics, UserStatus, UserEvent } from '../types';
+import { User, UserHealthMetrics, UserStatus, UserEvent, SuccessJourney } from '../types';
 import { HealthWeights } from './useHealthStore';
 import { useEventStore } from './useEventStore';
 
@@ -27,6 +27,39 @@ const ensureMetrics = (metrics: any, baseScore: number): UserHealthMetrics => {
     finance: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
     risk: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
   };
+};
+
+// Mock Journey Generator
+const generateMockJourney = (status: UserStatus): SuccessJourney => {
+    const steps = [
+        { id: '1', label: 'Setup Inicial & Convite', description: 'Configuração da conta e convite da equipe.', isCompleted: true, completedAt: '2023-10-01', isAutomated: true },
+        { id: '2', label: 'Integração de Dados', description: 'Conexão com fontes de dados externas.', isCompleted: true, completedAt: '2023-10-03', isAutomated: true },
+        { id: '3', label: 'Primeira Automação Ativa', description: 'Lançamento do primeiro agente em produção.', isCompleted: false, isAutomated: false },
+        { id: '4', label: 'Otimização de ROI', description: 'Ajuste fino para atingir métricas ideais.', isCompleted: false, isAutomated: false },
+        { id: '5', label: 'Expansão (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+    ];
+
+    // Adjust based on user status simulating progress
+    if (status === UserStatus.ACTIVE) {
+        steps[2].isCompleted = true;
+        steps[2].completedAt = '2023-10-10';
+    }
+    if (status === UserStatus.RISK) {
+        // Stuck at step 2
+    }
+    if (status === UserStatus.NEW) {
+        steps[1].isCompleted = false;
+    }
+
+    const completedCount = steps.filter(s => s.isCompleted).length;
+    const journeyStatus = completedCount === 0 ? 'not_started' : completedCount === 5 ? 'achieved' : 'in_progress';
+
+    return {
+        coreGoal: 'Automatizar 80% do Suporte L1',
+        status: journeyStatus,
+        steps: steps,
+        lastUpdate: new Date().toISOString()
+    };
 };
 
 // Helper para gerar eventos baseados nas mudanças
@@ -134,7 +167,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         tokensUsed: 0,
         isTest: u.is_test || false,
         churnReason: u.metrics?.churnReason || '',
-        history: u.metrics?.history || []
+        history: u.metrics?.history || [],
+        // Inject Journey if missing in DB (Mock for now)
+        journey: u.metrics?.journey || generateMockJourney(u.status as UserStatus)
       }));
 
       set({ users: formattedUsers });
@@ -161,7 +196,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       const metricsWithData = {
           ...baseMetrics,
           churnReason: userData.churnReason,
-          history: initialHistory
+          history: initialHistory,
+          // Persist journey in metrics jsonb column
+          journey: generateMockJourney(userData.status || UserStatus.NEW)
       };
 
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
@@ -206,7 +243,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         tokensUsed: 0,
         isTest: data.is_test,
         churnReason: data.metrics?.churnReason,
-        history: data.metrics?.history
+        history: data.metrics?.history,
+        journey: data.metrics?.journey
       };
 
       // Dispara evento global
@@ -263,6 +301,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.metrics) {
           newMetricsBase = { ...newMetricsBase, ...changes.metrics };
       }
+
+      // Handle Journey Updates
+      if (changes.journey) {
+          newMetricsBase.journey = changes.journey;
+      }
           
       let finalChurnReason = changes.churnReason;
       if (changes.status && changes.status !== UserStatus.CHURNED) {
@@ -298,7 +341,8 @@ export const useUserStore = create<UserState>((set, get) => ({
             ...changes,
             // Ensure we update the local state metric immediately for UI feedback
             metrics: newMetricsBase, 
-            history: updatedHistory 
+            history: updatedHistory,
+            journey: changes.journey || u.journey
         } : u)
       }));
     } catch (err) {

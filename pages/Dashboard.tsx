@@ -12,7 +12,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 
 const Dashboard: React.FC = () => {
@@ -36,6 +36,22 @@ const Dashboard: React.FC = () => {
 
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
+
+  // Journey Status Stats
+  const journeyStats = useMemo(() => {
+      const activeBase = users.filter(u => !u.isTest && u.status !== UserStatus.CHURNED);
+      const total = activeBase.length || 1;
+      
+      const achieved = activeBase.filter(u => u.journey?.status === 'achieved').length;
+      const inProgress = activeBase.filter(u => u.journey?.status === 'in_progress').length;
+      const notStarted = activeBase.filter(u => !u.journey || u.journey.status === 'not_started').length;
+
+      return {
+          achieved: { count: achieved, percent: (achieved/total)*100 },
+          inProgress: { count: inProgress, percent: (inProgress/total)*100 },
+          notStarted: { count: notStarted, percent: (notStarted/total)*100 }
+      };
+  }, [users]);
 
   // Calculate MRR (exclude churned users from revenue base)
   const totalMRR = revenueUsers.reduce((acc, user) => acc + (user.status !== UserStatus.CHURNED ? user.mrr : 0), 0);
@@ -134,11 +150,11 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="space-y-6"
+            className="grid grid-cols-1 md:grid-cols-4 gap-6"
         >
             
-            {/* Row 1: Vital Metrics (Full Width Row) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Main Metrics (Top Row) */}
+            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard 
                     title="Total de Usuários"
                     value={totalUsers}
@@ -174,10 +190,68 @@ const Dashboard: React.FC = () => {
                 />
             </div>
 
-            {/* Row 2: Centralized Health Score (Transparent Floating Indicator) */}
-            <div className="flex justify-center w-full">
+            {/* Health Score Right Side */}
+            <div className="col-span-1 flex justify-center w-full">
                 <HealthScore onClick={() => navigate('/health')} />
             </div>
+
+            {/* --- NEW SECTION: JOURNEY DISTRIBUTION (Aggregated Panel) --- */}
+            <Card className="col-span-1 md:col-span-2 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Target size={18} className="text-neon-cyan" /> Sucesso do Cliente
+                        </h3>
+                        <p className="text-xs text-gray-400">Distribuição da base por etapa da Jornada de Valor.</p>
+                    </div>
+                    <div className="p-2 bg-white/5 rounded-lg text-neon-cyan">
+                        <Flag size={20} />
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    {/* Achieved */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-white font-medium">Resultado Atingido (Success)</span>
+                            <span className="text-neon-green font-bold">{journeyStats.achieved.count}</span>
+                        </div>
+                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-neon-green shadow-[0_0_10px_rgba(52,255,176,0.5)]" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
+                        </div>
+                    </div>
+
+                    {/* In Progress */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-300">Em Progresso (Onboarding)</span>
+                            <span className="text-neon-blue font-bold">{journeyStats.inProgress.count}</span>
+                        </div>
+                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-neon-blue" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
+                        </div>
+                    </div>
+
+                    {/* Not Started */}
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-500">Não Iniciado / Setup</span>
+                            <span className="text-gray-400 font-bold">{journeyStats.notStarted.count}</span>
+                        </div>
+                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-gray-600" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <div className="col-span-1 md:col-span-2 flex items-center justify-center p-6 border border-white/5 rounded-xl bg-white/[0.02]">
+                <div className="text-center">
+                    <CheckCircle size={32} className="text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">Mais widgets analíticos em breve...</p>
+                </div>
+            </div>
+
         </motion.div>
       ) : (
         /* --- FOCUS MODE TAB CONTENT --- */

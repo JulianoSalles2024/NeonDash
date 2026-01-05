@@ -36,6 +36,22 @@ export enum UserStatus {
     timestamp: string;
     icon?: string;
   }
+
+  export interface JourneyStep {
+    id: string;
+    label: string;
+    description?: string;
+    isCompleted: boolean;
+    completedAt?: string;
+    isAutomated?: boolean; // Se true, seria gatilho de sistema
+  }
+
+  export interface SuccessJourney {
+    coreGoal: string; // O "Resultado Núcleo"
+    status: 'not_started' | 'in_progress' | 'achieved';
+    steps: JourneyStep[];
+    lastUpdate: string;
+  }
   
   export interface User {
     id: string;
@@ -54,6 +70,7 @@ export enum UserStatus {
     isTest?: boolean; // Coluna dedicada no DB (is_test)
     churnReason?: string; // Motivo do cancelamento (persistido em metrics)
     history?: UserEvent[]; // Log de eventos reais do usuário
+    journey?: SuccessJourney; // Nova estrutura de jornada
   }
 
   export interface AgentVersion {
