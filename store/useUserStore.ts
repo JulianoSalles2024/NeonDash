@@ -43,13 +43,13 @@ const pseudoRandom = (seed: string) => {
 
 // Mock Journey Generator
 const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
-    // Passos atualizados conforme o Plano de Ação real
+    // Passos atualizados conforme solicitação
     const steps: JourneyStep[] = [
-        { id: '1', label: 'Setup Inicial & Convite', description: 'Configuração da conta e convite da equipe.', isCompleted: false, isAutomated: true },
-        { id: '2', label: 'Integração de Dados', description: 'Conexão com fontes de dados externas.', isCompleted: false, isAutomated: true },
-        { id: '3', label: 'Primeira Automação', description: 'Lançamento do primeiro agente em produção.', isCompleted: false, isAutomated: false },
-        { id: '4', label: 'Otimização de ROI', description: 'Ajuste fino para atingir métricas ideais.', isCompleted: false, isAutomated: false },
-        { id: '5', label: 'Expansão (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+        { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: false, isAutomated: true },
+        { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: false, isAutomated: true },
+        { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
+        { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
+        { id: '5', label: 'Escala (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
     ];
 
     // Adjust based on user status simulating progress
@@ -58,25 +58,25 @@ const generateMockJourney = (status: UserStatus, userId: string = 'default'): Su
         const rand = pseudoRandom(userId);
         
         if (rand > 0.80) {
-            // 20% chance of Fully Achieved
+            // 20% chance of Fully Achieved (Escala)
             steps.forEach(s => { s.isCompleted = true; s.completedAt = '2025-01-15' });
         } else if (rand > 0.60) {
-            // Step 4 done (ROI)
+            // Step 4 done (Valor Gerado)
             steps[0].isCompleted = true;
             steps[1].isCompleted = true;
             steps[2].isCompleted = true;
             steps[3].isCompleted = true;
         } else if (rand > 0.40) {
-            // Step 3 done (Automação)
+            // Step 3 done (Execução Assistida)
             steps[0].isCompleted = true;
             steps[1].isCompleted = true;
             steps[2].isCompleted = true;
         } else if (rand > 0.20) {
-            // Step 2 done (Integração)
+            // Step 2 done (Estruturação)
             steps[0].isCompleted = true;
             steps[1].isCompleted = true;
         } else {
-            // Step 1 done (Setup)
+            // Step 1 done (Ativação)
             steps[0].isCompleted = true;
         }
     } else if (status === UserStatus.RISK) {
