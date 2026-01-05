@@ -32,11 +32,11 @@ const ensureMetrics = (metrics: any, baseScore: number): UserHealthMetrics => {
 // Mock Journey Generator
 const generateMockJourney = (status: UserStatus): SuccessJourney => {
     const steps = [
-        { id: '1', label: 'Setup Inicial & Convite', description: 'Configuração da conta e convite da equipe.', isCompleted: true, completedAt: '2023-10-01', isAutomated: true },
-        { id: '2', label: 'Integração de Dados', description: 'Conexão com fontes de dados externas.', isCompleted: true, completedAt: '2023-10-03', isAutomated: true },
-        { id: '3', label: 'Primeira Automação Ativa', description: 'Lançamento do primeiro agente em produção.', isCompleted: false, isAutomated: false },
-        { id: '4', label: 'Otimização de ROI', description: 'Ajuste fino para atingir métricas ideais.', isCompleted: false, isAutomated: false },
-        { id: '5', label: 'Expansão (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+        { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: true, completedAt: '2023-10-01', isAutomated: true },
+        { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: true, completedAt: '2023-10-03', isAutomated: true },
+        { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
+        { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
+        { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
     ];
 
     // Adjust based on user status simulating progress
