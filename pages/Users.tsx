@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, TrendingUp } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -14,6 +14,8 @@ interface SortConfig {
   key: SortKey;
   direction: SortDirection;
 }
+
+const ITEMS_PER_PAGE = 15;
 
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ const UsersPage: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'healthScore', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection State
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -38,7 +41,8 @@ const UsersPage: React.FC = () => {
       email: '',
       plan: 'Starter',
       status: UserStatus.NEW,
-      mrr: 0
+      mrr: 0,
+      isTest: false
   });
 
   // --- KPI CALCULATIONS ---
@@ -52,10 +56,17 @@ const UsersPage: React.FC = () => {
   );
 
   // Calculate ARPU (Average Revenue Per User) - "Média Planos"
-  const totalMRR = users.reduce((acc, u) => acc + u.mrr, 0);
-  const arpu = totalUsers > 0 ? totalMRR / totalUsers : 0;
+  // LÓGICA ALTERADA: Ignora usuários marcados como 'isTest'
+  const validRevenueUsers = users.filter(u => !u.isTest);
+  const totalMRR = validRevenueUsers.reduce((acc, u) => acc + u.mrr, 0);
+  const arpu = validRevenueUsers.length > 0 ? totalMRR / validRevenueUsers.length : 0;
 
   // --- LOGIC: Filtering & Sorting ---
+
+  // Reset page to 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const filteredUsers = useMemo(() => {
     let result = [...users];
@@ -95,6 +106,11 @@ const UsersPage: React.FC = () => {
     return result;
   }, [users, searchTerm, sortConfig]);
 
+  // --- LOGIC: Pagination ---
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   // --- HANDLERS ---
 
   const handleSort = (key: SortKey) => {
@@ -104,9 +120,15 @@ const UsersPage: React.FC = () => {
       }));
   };
 
+  const handlePageChange = (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+          setCurrentPage(newPage);
+      }
+  };
+
   const handleExportCSV = () => {
       // Create CSV content
-      const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR'];
+      const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Teste'];
       const rows = filteredUsers.map(u => [
           u.id,
           `"${u.name}"`,
@@ -115,7 +137,8 @@ const UsersPage: React.FC = () => {
           u.status,
           u.plan,
           u.healthScore,
-          u.mrr
+          u.mrr,
+          u.isTest ? 'SIM' : 'NAO'
       ]);
 
       const csvContent = [
@@ -149,7 +172,8 @@ const UsersPage: React.FC = () => {
         email: '',
         plan: 'Starter',
         status: UserStatus.NEW,
-        mrr: 0
+        mrr: 0,
+        isTest: false
       });
       setIsFormOpen(true);
   };
@@ -157,7 +181,7 @@ const UsersPage: React.FC = () => {
   const handleEdit = (e: React.MouseEvent, user: User) => {
       e.stopPropagation(); 
       setSelectedUser(user);
-      setFormData({ ...user });
+      setFormData({ ...user, isTest: user.isTest || false });
       setIsFormOpen(true);
   };
 
@@ -202,11 +226,18 @@ const UsersPage: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      setFormData(prev => ({
-          ...prev,
-          [name]: name === 'mrr' ? Number(value) : value
-      }));
+      const { name, value, type } = e.target;
+      
+      // Handle checkbox for isTest
+      if (type === 'checkbox') {
+        const checked = (e.target as HTMLInputElement).checked;
+        setFormData(prev => ({ ...prev, [name]: checked }));
+      } else {
+        setFormData(prev => ({
+            ...prev,
+            [name]: name === 'mrr' ? Number(value) : value
+        }));
+      }
   };
 
   // Helper for Sort Icon
@@ -280,7 +311,7 @@ const UsersPage: React.FC = () => {
             <Card className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-white/5 text-neon-purple"><CreditCard size={24}/></div>
                 <div>
-                    <p className="text-xs text-gray-400 uppercase">Ticket Médio</p>
+                    <p className="text-xs text-gray-400 uppercase">Ticket Médio (Real)</p>
                     <p className="text-2xl font-bold text-white">R$ {arpu.toFixed(0)}</p>
                 </div>
             </Card>
@@ -302,7 +333,7 @@ const UsersPage: React.FC = () => {
             </Card>
         </div>
 
-        <Card className="overflow-hidden p-0 min-h-[500px]">
+        <Card className="overflow-hidden p-0 min-h-[600px] flex flex-col justify-between">
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="border-b border-white/5 bg-white/[0.02]">
@@ -348,7 +379,7 @@ const UsersPage: React.FC = () => {
                             </td>
                         </tr>
                     ) : (
-                        filteredUsers.map((user) => (
+                        paginatedUsers.map((user) => (
                             <tr 
                                 key={user.id} 
                                 onClick={() => navigate(`/users/${user.id}`)}
@@ -363,7 +394,14 @@ const UsersPage: React.FC = () => {
                                         </div>
                                         
                                         <div>
-                                            <p className="text-sm font-medium text-white group-hover:text-neon-cyan transition-colors">{user.name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-white group-hover:text-neon-cyan transition-colors">{user.name}</p>
+                                                {user.isTest && (
+                                                    <span className="text-[9px] font-bold bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded border border-gray-600 uppercase tracking-wide" title="Usuário de Teste (Não conta para métricas)">
+                                                        TESTE
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-xs text-gray-500">{user.company}</p>
                                         </div>
                                     </div>
@@ -389,7 +427,9 @@ const UsersPage: React.FC = () => {
                                     <span className="text-sm text-gray-400">{user.lastActive}</span>
                                 </td>
                                 <td className="p-4 text-right">
-                                    <span className="text-sm font-medium text-white font-mono">R$ {user.mrr.toLocaleString()}</span>
+                                    <span className={`text-sm font-medium font-mono ${user.isTest ? 'text-gray-500 line-through decoration-gray-600' : 'text-white'}`}>
+                                        R$ {user.mrr.toLocaleString()}
+                                    </span>
                                 </td>
                                 <td className="p-4 text-right">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -414,6 +454,63 @@ const UsersPage: React.FC = () => {
                     )}
                 </tbody>
             </table>
+
+            {/* Pagination Footer */}
+            {filteredUsers.length > 0 && (
+                <div className="p-4 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/[0.01]">
+                    <span className="text-xs text-gray-500">
+                        Mostrando <span className="font-medium text-white">{startIndex + 1}</span> - <span className="font-medium text-white">{Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)}</span> de <span className="font-medium text-white">{filteredUsers.length}</span> usuários
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                        <button 
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`
+                                p-2 rounded-lg border border-transparent transition-colors
+                                ${currentPage === 1 
+                                    ? 'text-gray-600 cursor-not-allowed' 
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/10'}
+                            `}
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-1 mx-2">
+                            {Array.from({ length: totalPages }).map((_, i) => {
+                                const pageNum = i + 1;
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => handlePageChange(pageNum)}
+                                        className={`
+                                            w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-all
+                                            ${currentPage === pageNum 
+                                                ? 'bg-neon-cyan text-dark-bg font-bold shadow-[0_0_10px_rgba(124,252,243,0.3)]' 
+                                                : 'text-gray-400 hover:text-white hover:bg-white/5'}
+                                        `}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button 
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className={`
+                                p-2 rounded-lg border border-transparent transition-colors
+                                ${currentPage === totalPages
+                                    ? 'text-gray-600 cursor-not-allowed' 
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/10'}
+                            `}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </Card>
 
         {/* --- FORM MODAL --- */}
@@ -492,6 +589,29 @@ const UsersPage: React.FC = () => {
                                     placeholder="0.00"
                                 />
                             </div>
+                        </div>
+
+                        {/* Test User Toggle Switch */}
+                        <div className="flex items-center justify-between p-3 rounded bg-white/5 border border-white/10">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${formData.isTest ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-gray-700/50 text-gray-400'}`}>
+                                    <FlaskConical size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-white">Usuário de Teste</p>
+                                    <p className="text-[10px] text-gray-500">Não contabilizar no Ticket Médio (ARPU)</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    name="isTest"
+                                    checked={formData.isTest || false} 
+                                    onChange={handleChange} 
+                                    className="sr-only peer" 
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-cyan"></div>
+                            </label>
                         </div>
 
                         <div className="pt-4 flex justify-end gap-3">

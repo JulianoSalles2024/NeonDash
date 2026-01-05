@@ -1,3 +1,4 @@
+
 export enum UserStatus {
     ACTIVE = 'Ativo',
     RISK = 'Risco',
@@ -40,6 +41,7 @@ export enum UserStatus {
     plan: 'Starter' | 'Pro' | 'Enterprise'; 
     tokensUsed: number;
     mrr: number;
+    isTest?: boolean; // Flag para indicar usuário de teste (não conta para métricas financeiras)
   }
 
   export interface AgentVersion {
