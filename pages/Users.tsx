@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2 } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -30,6 +30,21 @@ const getLocalDateString = (date?: string | Date) => {
     return `${year}-${month}-${day}`;
 };
 
+// Helper para datetime-local input (YYYY-MM-DDTHH:MM)
+const getLocalDateTimeString = (date?: string | Date) => {
+    const d = date && date !== 'Nunca' && date !== 'Agora' ? new Date(date) : new Date();
+    // Se a data for inválida ou string amigável, usa agora
+    if (isNaN(d.getTime())) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0, 16);
+    }
+    
+    // Ajuste de timezone para o input
+    const dLocal = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+    return dLocal.toISOString().slice(0, 16);
+};
+
 // Opções de Churn
 const CHURN_REASONS = [
     "Carrinho Abandonado",
@@ -49,6 +64,8 @@ const UsersPage: React.FC = () => {
   // --- UI STATE ---
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false); // Novo Modal
+  
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'healthScore', direction: 'desc' });
@@ -57,7 +74,7 @@ const UsersPage: React.FC = () => {
   // Selection State
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
-  // Form State
+  // Form State (Main Edit)
   const [formData, setFormData] = useState<Partial<User>>({
       name: '',
       company: '',
@@ -69,6 +86,9 @@ const UsersPage: React.FC = () => {
       joinedAt: '',
       churnReason: ''
   });
+
+  // Access Date State (Separate Flow)
+  const [accessDate, setAccessDate] = useState('');
 
   // --- KPI CALCULATIONS ---
   const totalUsers = users.length;
@@ -223,6 +243,48 @@ const UsersPage: React.FC = () => {
       setIsFormOpen(true);
   };
 
+  // --- LAST ACCESS HANDLERS ---
+  const handleOpenAccessModal = (e: React.MouseEvent, user: User) => {
+      e.stopPropagation();
+      setSelectedUser(user);
+      // Prepara a data atual ou a data salva para o input
+      // Se lastActive for 'Agora' ou 'Nunca', usa o momento atual
+      setAccessDate(getLocalDateTimeString(user.lastActive === 'Agora' || user.lastActive === 'Nunca' ? new Date() : new Date(user.lastActive)));
+      setIsAccessModalOpen(true);
+  };
+
+  const handleSaveAccess = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedUser || !accessDate) return;
+
+      setIsSaving(true);
+      try {
+          // Converte o valor do input datetime-local para string legível na UI
+          // e formato que o backend entenda (no caso, o backend espera algo que caiba em last_active)
+          // Mas para UI instantânea, formatamos bonito.
+          const dateObj = new Date(accessDate);
+          
+          // Enviamos para o store (que manda pro DB). 
+          // O DB aceita timestamp ISO. O store atualiza o local state.
+          await updateUser(selectedUser.id, { 
+              lastActive: dateObj.toISOString() 
+          });
+
+          // Atualizamos visualmente a tabela formatando a data, já que o updateUser do store
+          // faz um merge simples. No fetchUsers real ele formata DateString.
+          // Para evitar inconsistência visual até o reload, podemos forçar a string formatada no estado local se quiséssemos,
+          // mas o updateUser espera Partial<User>, e User.lastActive é string.
+          // Vamos confiar no ISO por enquanto, ou recarregar.
+          
+          addToast({ type: 'success', title: 'Acesso Registrado', message: `Último acesso de ${selectedUser.name} atualizado.` });
+          setIsAccessModalOpen(false);
+      } catch (error) {
+          addToast({ type: 'error', title: 'Erro', message: 'Falha ao atualizar data de acesso.' });
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
   const handleDeleteClick = (e: React.MouseEvent, user: User) => {
       e.stopPropagation();
       setSelectedUser(user);
@@ -264,7 +326,6 @@ const UsersPage: React.FC = () => {
         setIsFormOpen(false);
       } catch (error: any) {
         console.error("Save error:", error);
-        // Exibe a mensagem real do erro para debug (ex: Column not found)
         addToast({ 
             type: 'error', 
             title: 'Erro ao Salvar', 
@@ -306,6 +367,17 @@ const UsersPage: React.FC = () => {
       default: return 'bg-gray-400';
     }
   };
+
+  // Helper para mostrar data amigável na tabela
+  const formatLastActive = (dateStr: string) => {
+      if (dateStr === 'Agora' || dateStr === 'Nunca') return dateStr;
+      // Tenta fazer parse se for ISO
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      return dateStr;
+  }
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto relative">
@@ -479,7 +551,7 @@ const UsersPage: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="p-4">
-                                    <span className="text-sm text-gray-400">{user.lastActive}</span>
+                                    <span className="text-sm text-gray-400 font-mono">{formatLastActive(user.lastActive)}</span>
                                 </td>
                                 <td className="p-4 text-right">
                                     <span className={`text-sm font-medium font-mono ${user.isTest ? 'text-gray-500 line-through decoration-gray-600' : 'text-white'}`}>
@@ -488,6 +560,13 @@ const UsersPage: React.FC = () => {
                                 </td>
                                 <td className="p-4 text-right">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={(e) => handleOpenAccessModal(e, user)}
+                                            className="p-1.5 text-gray-400 hover:text-neon-cyan hover:bg-neon-cyan/10 rounded transition-colors"
+                                            title="Registrar Acesso Manual"
+                                        >
+                                            <Clock size={16} />
+                                        </button>
                                         <button 
                                             onClick={(e) => handleEdit(e, user)}
                                             className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
@@ -567,6 +646,7 @@ const UsersPage: React.FC = () => {
             )}
         </Card>
 
+        {/* --- MODAL DE EDIÇÃO PRINCIPAL --- */}
         {isFormOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="w-full max-w-md bg-[#111625] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
@@ -717,6 +797,71 @@ const UsersPage: React.FC = () => {
                             >
                                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                 {isSaving ? 'Salvando...' : 'Salvar'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+
+        {/* --- MODAL DE ÚLTIMO ACESSO (MANUAL) --- */}
+        {isAccessModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="w-full max-w-sm bg-[#111625] border border-white/10 rounded-xl shadow-[0_0_30px_rgba(124,252,243,0.1)] overflow-hidden">
+                    <div className="p-5 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-white font-display font-bold">
+                            <Clock size={18} className="text-neon-cyan" />
+                            Registrar Acesso
+                        </div>
+                        <button onClick={() => setIsAccessModalOpen(false)} className="text-gray-400 hover:text-white">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    
+                    <form onSubmit={handleSaveAccess} className="p-6">
+                        <p className="text-sm text-gray-400 mb-4">
+                            Atualizando status para: <br/> <strong className="text-white">{selectedUser?.name}</strong>
+                        </p>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Data e Hora</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={accessDate}
+                                    onChange={(e) => setAccessDate(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan focus:outline-none [color-scheme:dark]"
+                                    required
+                                />
+                            </div>
+                            
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    const now = new Date();
+                                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                                    setAccessDate(now.toISOString().slice(0, 16));
+                                }}
+                                className="text-xs text-neon-cyan hover:underline flex items-center gap-1"
+                            >
+                                <Clock size={12} /> Definir como Agora
+                            </button>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsAccessModalOpen(false)}
+                                className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit"
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-neon-cyan text-dark-bg font-bold rounded text-sm hover:bg-neon-blue transition-colors flex items-center gap-2"
+                            >
+                                {isSaving ? 'Salvando...' : 'Confirmar'}
                             </button>
                         </div>
                     </form>
