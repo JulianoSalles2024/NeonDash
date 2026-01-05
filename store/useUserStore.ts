@@ -29,8 +29,20 @@ const ensureMetrics = (metrics: any, baseScore: number): UserHealthMetrics => {
   };
 };
 
+// Helper for deterministic pseudo-random based on string
+const pseudoRandom = (seed: string) => {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        const char = seed.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    const x = Math.sin(hash) * 10000;
+    return x - Math.floor(x);
+};
+
 // Mock Journey Generator
-const generateMockJourney = (status: UserStatus): SuccessJourney => {
+const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
     const steps = [
         { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: true, completedAt: '2023-10-01', isAutomated: true },
         { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: true, completedAt: '2023-10-03', isAutomated: true },
@@ -41,13 +53,41 @@ const generateMockJourney = (status: UserStatus): SuccessJourney => {
 
     // Adjust based on user status simulating progress
     if (status === UserStatus.ACTIVE) {
-        steps[2].isCompleted = true;
-        steps[2].completedAt = '2023-10-10';
-    }
-    if (status === UserStatus.RISK) {
+        // Use ID to determine progress deterministically so it doesn't jump on refresh
+        const rand = pseudoRandom(userId);
+        
+        if (rand > 0.75) {
+            // 25% chance of Fully Achieved
+            steps.forEach(s => { s.isCompleted = true; s.completedAt = '2023-10-15' });
+        } else if (rand > 0.4) {
+            // 35% chance of up to Step 4 (Value Generated)
+            steps[0].isCompleted = true;
+            steps[1].isCompleted = true;
+            steps[2].isCompleted = true;
+            steps[3].isCompleted = true;
+        } else {
+            // 40% chance of up to Step 3 (Execution)
+            steps[0].isCompleted = true;
+            steps[1].isCompleted = true;
+            steps[2].isCompleted = true;
+        }
+    } else if (status === UserStatus.RISK) {
         // Stuck at step 2
-    }
-    if (status === UserStatus.NEW) {
+        steps[0].isCompleted = true;
+        steps[1].isCompleted = true;
+        steps[2].isCompleted = false;
+        steps[3].isCompleted = false;
+        steps[4].isCompleted = false;
+    } else if (status === UserStatus.NEW) {
+        // Just started
+        steps[0].isCompleted = true;
+        steps[1].isCompleted = false;
+        steps[2].isCompleted = false;
+        steps[3].isCompleted = false;
+        steps[4].isCompleted = false;
+    } else {
+        // Churned or Ghost - minimal progress usually
+        steps[0].isCompleted = true;
         steps[1].isCompleted = false;
     }
 
@@ -168,8 +208,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         isTest: u.is_test || false,
         churnReason: u.metrics?.churnReason || '',
         history: u.metrics?.history || [],
-        // Inject Journey if missing in DB (Mock for now)
-        journey: u.metrics?.journey || generateMockJourney(u.status as UserStatus)
+        // Inject Journey if missing in DB (Mock for now, using ID for deterministic random)
+        journey: u.metrics?.journey || generateMockJourney(u.status as UserStatus, u.id)
       }));
 
       set({ users: formattedUsers });
@@ -193,12 +233,15 @@ export const useUserStore = create<UserState>((set, get) => ({
           timestamp: new Date().toLocaleString('pt-BR')
       }];
 
+      // Mock journey for initial creation
+      const mockJourney = generateMockJourney(userData.status || UserStatus.NEW, Date.now().toString());
+
       const metricsWithData = {
           ...baseMetrics,
           churnReason: userData.churnReason,
           history: initialHistory,
           // Persist journey in metrics jsonb column
-          journey: generateMockJourney(userData.status || UserStatus.NEW)
+          journey: mockJourney
       };
 
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
