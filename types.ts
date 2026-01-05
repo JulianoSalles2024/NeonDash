@@ -26,7 +26,6 @@ export enum UserStatus {
     support: number;    // 0-100 (High is good health)
     finance: number;    // 0-100 (High is good health)
     risk: number;       // 0-100 (High is safe, Low is risky)
-    isTest?: boolean;   // Flag persistida via JSONB
   }
   
   export interface User {
@@ -43,7 +42,7 @@ export enum UserStatus {
     plan: 'Starter' | 'Pro' | 'Enterprise'; 
     tokensUsed: number;
     mrr: number;
-    isTest?: boolean; // Flag para indicar usuário de teste (não conta para métricas financeiras)
+    isTest?: boolean; // Coluna dedicada no DB (is_test)
   }
 
   export interface AgentVersion {

@@ -58,8 +58,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         metrics: u.metrics,
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
         tokensUsed: 0,
-        // BACKWARD COMPATIBILITY: Verifica se está no JSON de métricas ou na coluna legada (se existir)
-        isTest: u.metrics?.isTest || u.is_test || false
+        // Mapeamento direto da coluna
+        isTest: u.is_test || false
       }));
 
       set({ users: formattedUsers });
@@ -73,15 +73,8 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
     try {
-      const baseMetrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
+      const metrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
       
-      // ESTRATÉGIA DE SALVAMENTO: Salva isTest DENTRO de metrics (JSONB)
-      // Isso evita o erro "Column is_test does not exist"
-      const metricsPayload = {
-          ...baseMetrics,
-          isTest: !!userData.isTest
-      };
-
       // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
           ? `${userData.joinedAt}T12:00:00Z`
@@ -95,10 +88,10 @@ export const useUserStore = create<UserState>((set, get) => ({
           plan: userData.plan,
           mrr: userData.mrr,
           health_score: userData.healthScore || 100,
-          metrics: metricsPayload, // Salvando no JSON
+          metrics: metrics,
           last_active: new Date().toISOString(),
           created_at: safeCreatedAt,
-          // Removido envio da coluna is_test para evitar crash
+          is_test: !!userData.isTest // Grava na coluna dedicada
       };
 
       const { data, error } = await supabase
@@ -123,21 +116,18 @@ export const useUserStore = create<UserState>((set, get) => ({
         metrics: data.metrics,
         avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`,
         tokensUsed: 0,
-        isTest: !!userData.isTest
+        isTest: data.is_test
       };
 
       set((state) => ({ users: [newUser, ...state.users] }));
     } catch (err) {
       console.error('Error adding user:', err);
-      throw err; // Relança para a UI saber que falhou
+      throw err;
     }
   },
 
   updateUser: async (id, changes) => {
     try {
-      const state = get();
-      const currentUser = state.users.find(u => u.id === id);
-      
       const dbPayload: any = {};
 
       if (changes.name !== undefined) dbPayload.name = changes.name;
@@ -147,6 +137,10 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.plan !== undefined) dbPayload.plan = changes.plan;
       if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
       if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
+      if (changes.metrics !== undefined) dbPayload.metrics = changes.metrics;
+      
+      // Mapeamento direto para a coluna
+      if (changes.isTest !== undefined) dbPayload.is_test = changes.isTest;
       
       // Tratamento de Data
       if (changes.joinedAt) {
@@ -155,21 +149,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           } else {
               dbPayload.created_at = changes.joinedAt;
           }
-      }
-
-      // Merge de Métricas e isTest no JSONB
-      // Se qualquer um dos dois mudar, precisamos atualizar o objeto metrics inteiro
-      if (changes.metrics || changes.isTest !== undefined) {
-          const currentMetrics = currentUser?.metrics || ensureMetrics(null, 100);
-          const newBaseMetrics = changes.metrics || currentMetrics;
-          
-          // Preserva o isTest atual se não for passado na mudança, ou usa o novo valor
-          const newIsTest = changes.isTest !== undefined ? changes.isTest : currentUser?.isTest;
-
-          dbPayload.metrics = {
-              ...newBaseMetrics,
-              isTest: newIsTest
-          };
       }
 
       const { error } = await supabase
