@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -59,7 +59,7 @@ const UsersPage: React.FC = () => {
   const { addToast } = useToastStore();
   
   // Connect to Global Store
-  const { users, addUser, updateUser, deleteUser } = useUserStore();
+  const { users, addUser, updateUser, deleteUser, fetchUsers } = useUserStore();
 
   // --- UI STATE ---
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -261,22 +261,19 @@ const UsersPage: React.FC = () => {
       try {
           // Converte o valor do input datetime-local para string legível na UI
           // e formato que o backend entenda (no caso, o backend espera algo que caiba em last_active)
-          // Mas para UI instantânea, formatamos bonito.
           const dateObj = new Date(accessDate);
+          const isoString = dateObj.toISOString();
           
           // Enviamos para o store (que manda pro DB). 
-          // O DB aceita timestamp ISO. O store atualiza o local state.
           await updateUser(selectedUser.id, { 
-              lastActive: dateObj.toISOString() 
+              lastActive: isoString 
           });
 
-          // Atualizamos visualmente a tabela formatando a data, já que o updateUser do store
-          // faz um merge simples. No fetchUsers real ele formata DateString.
-          // Para evitar inconsistência visual até o reload, podemos forçar a string formatada no estado local se quiséssemos,
-          // mas o updateUser espera Partial<User>, e User.lastActive é string.
-          // Vamos confiar no ISO por enquanto, ou recarregar.
+          // Forçar um refresh do Supabase para garantir que a persistência ocorreu
+          // Isso ajuda a confirmar para o usuário que não é apenas uma mudança local
+          await fetchUsers();
           
-          addToast({ type: 'success', title: 'Acesso Registrado', message: `Último acesso de ${selectedUser.name} atualizado.` });
+          addToast({ type: 'success', title: 'Acesso Registrado', message: `Último acesso de ${selectedUser.name} sincronizado com o banco.` });
           setIsAccessModalOpen(false);
       } catch (error) {
           addToast({ type: 'error', title: 'Erro', message: 'Falha ao atualizar data de acesso.' });
@@ -415,6 +412,7 @@ const UsersPage: React.FC = () => {
             </div>
         </div>
 
+        {/* ... KPIs ... */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card className="flex items-center gap-4 border-neon-blue/20 bg-neon-blue/5">
                 <div className="p-3 rounded-lg bg-neon-blue/10 text-neon-blue"><Users size={24}/></div>
@@ -595,6 +593,7 @@ const UsersPage: React.FC = () => {
                 </tbody>
             </table>
 
+            {/* Pagination ... */}
             {filteredUsers.length > 0 && (
                 <div className="p-4 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/[0.01]">
                     <span className="text-xs text-gray-500">
@@ -869,6 +868,11 @@ const UsersPage: React.FC = () => {
                             >
                                 {isSaving ? 'Salvando...' : 'Confirmar'}
                             </button>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-white/5 text-[10px] text-gray-500 flex items-center gap-1">
+                            <Database size={10} />
+                            Os dados são salvos diretamente no banco de dados.
                         </div>
                     </form>
                 </div>

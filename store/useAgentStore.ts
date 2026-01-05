@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Agent, AgentStatus } from '../types';
+import { useEventStore } from './useEventStore';
 
 interface AgentState {
   agents: Agent[];
@@ -37,8 +38,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             temperature: a.temperature,
             totalTokens: a.total_tokens,
             cost: a.cost,
-            successRate: 98.5, // Campo mockado ou calculado via logs no futuro
-            avgLatency: 800,   // Campo mockado ou calculado via logs no futuro
+            successRate: 98.5, 
+            avgLatency: 800,
             lastUsed: 'Hoje',
         }));
 
@@ -76,6 +77,13 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             cost: 0
         };
 
+        useEventStore.getState().addEvent({
+            level: 'info',
+            title: 'Agente Criado',
+            description: `Novo agente "${newAgent.name}" implantado com modelo ${newAgent.model}.`,
+            source: 'AI Lab'
+        });
+
         set((state) => ({ agents: [newAgent, ...state.agents] }));
     } catch (error) {
         console.error('Error adding agent:', error);
@@ -84,11 +92,13 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   
   updateAgent: async (id, changes) => {
     try {
+        const state = get();
+        const currentAgent = state.agents.find(a => a.id === id);
+
         const dbChanges: any = { ...changes };
         if (changes.systemPrompt !== undefined) dbChanges.system_prompt = changes.systemPrompt;
         if (changes.totalTokens !== undefined) dbChanges.total_tokens = changes.totalTokens;
         
-        // Remove campos frontend-only
         delete dbChanges.systemPrompt;
         delete dbChanges.totalTokens;
         delete dbChanges.lastUsed;
@@ -103,6 +113,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
         if (error) throw error;
 
+        if (currentAgent && changes.status && changes.status !== currentAgent.status) {
+             useEventStore.getState().addEvent({
+                level: changes.status === AgentStatus.MAINTENANCE ? 'warning' : 'info',
+                title: 'Status de Agente',
+                description: `Agente "${currentAgent.name}" agora está ${changes.status}.`,
+                source: 'AI Ops'
+            });
+        }
+
         set((state) => ({
             agents: state.agents.map((a) => a.id === id ? { ...a, ...changes } : a)
         }));
@@ -113,8 +132,21 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   
   deleteAgent: async (id) => {
     try {
+        const state = get();
+        const agent = state.agents.find(a => a.id === id);
+
         const { error } = await supabase.from('agents').delete().eq('id', id);
         if (error) throw error;
+
+        if (agent) {
+            useEventStore.getState().addEvent({
+                level: 'warning',
+                title: 'Agente Desativado',
+                description: `O agente "${agent.name}" foi removido do cluster.`,
+                source: 'AI Lab'
+            });
+        }
+
         set((state) => ({
             agents: state.agents.filter((a) => a.id !== id)
         }));

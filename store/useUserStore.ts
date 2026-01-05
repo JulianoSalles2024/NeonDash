@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { User, UserHealthMetrics, UserStatus, UserEvent } from '../types';
 import { HealthWeights } from './useHealthStore';
+import { useEventStore } from './useEventStore';
 
 interface UserState {
   users: User[];
@@ -34,7 +35,6 @@ const generateEventFromChanges = (changes: Partial<User>, currentUser: User): Us
     const id = Date.now().toString();
 
     if (changes.lastActive && changes.lastActive !== currentUser.lastActive) {
-        // Formata data ISO para legível se possível
         let dateDisplay = changes.lastActive;
         try {
             if (changes.lastActive.includes('-')) {
@@ -42,6 +42,14 @@ const generateEventFromChanges = (changes: Partial<User>, currentUser: User): Us
                 dateDisplay = d.toLocaleDateString() + ' às ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
         } catch (e) {}
+
+        // Dispara evento global
+        useEventStore.getState().addEvent({
+            level: 'info',
+            title: 'Atividade de Usuário',
+            description: `${currentUser.name} registrou acesso em ${dateDisplay}.`,
+            source: 'Activity',
+        });
 
         return {
             id,
@@ -55,6 +63,16 @@ const generateEventFromChanges = (changes: Partial<User>, currentUser: User): Us
     if (changes.status && changes.status !== currentUser.status) {
         const type = changes.status === UserStatus.CHURNED ? 'error' : 
                      changes.status === UserStatus.ACTIVE ? 'success' : 'warning';
+        
+        // Dispara evento global
+        useEventStore.getState().addEvent({
+            level: changes.status === UserStatus.CHURNED ? 'critical' : changes.status === UserStatus.RISK ? 'warning' : 'success',
+            title: `Mudança de Status: ${changes.status}`,
+            description: `${currentUser.name} mudou de ${currentUser.status} para ${changes.status}.`,
+            source: 'CRM',
+            action: changes.status === UserStatus.RISK ? 'Verificar' : undefined
+        });
+
         return {
             id,
             type,
@@ -65,6 +83,14 @@ const generateEventFromChanges = (changes: Partial<User>, currentUser: User): Us
     }
 
     if (changes.plan && changes.plan !== currentUser.plan) {
+        useEventStore.getState().addEvent({
+            level: 'success',
+            title: 'Upgrade/Downgrade',
+            description: `${currentUser.name} alterou o plano para ${changes.plan}.`,
+            source: 'Billing',
+            action: 'Fatura'
+        });
+
         return {
             id,
             type: 'success',
@@ -74,18 +100,6 @@ const generateEventFromChanges = (changes: Partial<User>, currentUser: User): Us
         };
     }
 
-    if (changes.healthScore !== undefined && Math.abs(changes.healthScore - currentUser.healthScore) > 10) {
-        const isDrop = changes.healthScore < currentUser.healthScore;
-        return {
-            id,
-            type: isDrop ? 'warning' : 'success',
-            title: 'Health Score Atualizado',
-            description: `A pontuação de saúde ${isDrop ? 'caiu' : 'subiu'} para ${changes.healthScore}.`,
-            timestamp: now
-        };
-    }
-
-    // Generic fallback for other significant changes could go here
     return null;
 };
 
@@ -104,7 +118,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      // Mapeamento DB (snake_case) -> Frontend (camelCase)
       const formattedUsers: User[] = (data || []).map((u: any) => ({
         id: u.id,
         name: u.name,
@@ -114,17 +127,13 @@ export const useUserStore = create<UserState>((set, get) => ({
         plan: u.plan,
         mrr: u.mrr,
         healthScore: u.health_score,
-        // Mantém formato ISO cru ou 'Nunca' para permitir ordenação correta na UI
         lastActive: u.last_active || 'Nunca',
         joinedAt: u.created_at,
         metrics: u.metrics,
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
         tokensUsed: 0,
-        // Mapeamento direto da coluna
         isTest: u.is_test || false,
-        // Recupera churnReason de dentro das métricas (JSON)
         churnReason: u.metrics?.churnReason || '',
-        // Recupera histórico de dentro das métricas (JSON)
         history: u.metrics?.history || []
       }));
 
@@ -139,7 +148,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
     try {
-      // Injeta churnReason dentro das métricas para persistência sem migration
       const baseMetrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
       
       const initialHistory: UserEvent[] = [{
@@ -156,7 +164,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           history: initialHistory
       };
 
-      // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
           ? `${userData.joinedAt}T12:00:00Z`
           : (userData.joinedAt || new Date().toISOString());
@@ -172,7 +179,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           metrics: metricsWithData,
           last_active: new Date().toISOString(),
           created_at: safeCreatedAt,
-          is_test: !!userData.isTest // Grava na coluna dedicada
+          is_test: !!userData.isTest
       };
 
       const { data, error } = await supabase
@@ -202,6 +209,15 @@ export const useUserStore = create<UserState>((set, get) => ({
         history: data.metrics?.history
       };
 
+      // Dispara evento global
+      useEventStore.getState().addEvent({
+          level: 'success',
+          title: 'Novo Cliente',
+          description: `${newUser.name} (${newUser.company}) entrou na plataforma.`,
+          source: 'Growth',
+          action: 'Onboarding'
+      });
+
       set((state) => ({ users: [newUser, ...state.users] }));
     } catch (err) {
       console.error('Error adding user:', err);
@@ -215,10 +231,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       const currentUser = state.users.find(u => u.id === id);
       if (!currentUser) return;
 
-      // 1. Gera Evento de Histórico
       const newEvent = generateEventFromChanges(changes, currentUser);
       
-      // 2. Prepara nova lista de histórico
       let updatedHistory = currentUser.history || [];
       if (newEvent) {
           updatedHistory = [newEvent, ...updatedHistory];
@@ -233,20 +247,12 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.plan !== undefined) dbPayload.plan = changes.plan;
       if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
       if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
-      
-      // Mapeamento direto para a coluna
       if (changes.isTest !== undefined) dbPayload.is_test = changes.isTest;
-      
-      // Update last_active directly if provided
       if (changes.lastActive !== undefined) dbPayload.last_active = changes.lastActive;
 
-      // Tratamento especial para metrics, churnReason e HISTORY
-      // Precisamos mesclar porque tudo vive dentro do JSON metrics no DB
       const currentMetrics = currentUser.metrics || ensureMetrics(null, 100);
       const newMetricsBase = changes.metrics || currentMetrics;
           
-      // Se o status mudou para algo que não é churn, limpamos o motivo
-      // Se o usuário explicitamente mudou o motivo, usamos o novo
       let finalChurnReason = changes.churnReason;
       if (changes.status && changes.status !== UserStatus.CHURNED) {
           finalChurnReason = '';
@@ -257,10 +263,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       dbPayload.metrics = {
           ...newMetricsBase,
           churnReason: finalChurnReason,
-          history: updatedHistory // Persiste o histórico atualizado
+          history: updatedHistory
       };
       
-      // Tratamento de Data
       if (changes.joinedAt) {
           if (changes.joinedAt.length === 10) {
               dbPayload.created_at = `${changes.joinedAt}T12:00:00Z`;
@@ -276,7 +281,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      // Atualiza estado local
       set((state) => ({
         users: state.users.map((u) => u.id === id ? { 
             ...u, 
@@ -292,8 +296,20 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   deleteUser: async (id) => {
     try {
+      const state = get();
+      const user = state.users.find(u => u.id === id);
+      
       const { error } = await supabase.from('clients').delete().eq('id', id);
       if (error) throw error;
+
+      if (user) {
+          useEventStore.getState().addEvent({
+              level: 'warning',
+              title: 'Usuário Excluído',
+              description: `O registro de ${user.name} foi removido permanentemente.`,
+              source: 'System'
+          });
+      }
 
       set((state) => ({ users: state.users.filter((u) => u.id !== id) }));
     } catch (err) {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useEventStore } from './useEventStore';
 
 interface User {
   id: string;
@@ -24,7 +25,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
-  isCheckingAuth: true, // Começa true para evitar redirect prematuro
+  isCheckingAuth: true, 
   user: null,
   isLoading: false,
 
@@ -35,7 +36,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true });
 
-      // 1. Tentar registrar via API (Bypass de confirmação de email via Admin API se disponível)
       try {
         const response = await fetch('/api/create-user', {
             method: 'POST',
@@ -44,7 +44,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         if (response.ok) {
-            // Se sucesso via API, fazemos login automático
             await get().login(email);
             return true;
         }
@@ -52,7 +51,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.warn('API Registration skipped, falling back to client-side auth.');
       }
 
-      // 2. Fallback para Auth Cliente Padrão (Pode exigir confirmação de email dependendo do projeto)
       const { data, error } = await supabase.auth.signUp({
         email,
         password: 'ChangeMe123!', 
@@ -64,7 +62,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
-        // Tenta inserir no banco público caso o trigger não exista
         await supabase.from('clients').insert({
           id: data.user.id,
           email: email,
@@ -77,7 +74,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           metrics: { engagement: 50, support: 50, finance: 50, risk: 50 }
         });
         
-        // Se a sessão foi criada (email confirm off), loga o usuário
         if (data.session) {
             get().setUser({
                 id: data.user.id,
@@ -110,16 +106,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
-        set({
-          isAuthenticated: true,
-          user: {
+        const user = {
             id: data.user.id,
             email: data.user.email!,
             name: data.user.user_metadata.name || 'Admin',
             company: data.user.user_metadata.company || 'Neon HQ',
-            role: data.user.user_metadata.role || 'admin'
-          }
+            role: data.user.user_metadata.role || 'admin' as const
+        };
+
+        set({
+          isAuthenticated: true,
+          user: user
         });
+
+        useEventStore.getState().addEvent({
+            level: 'info',
+            title: 'Login Detectado',
+            description: `${user.name} iniciou sessão no painel.`,
+            source: 'Auth Check'
+        });
+
         return true;
       }
       return false;
@@ -132,6 +138,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const user = get().user;
+    if (user) {
+        useEventStore.getState().addEvent({
+            level: 'info',
+            title: 'Logout',
+            description: `${user.name} encerrou a sessão.`,
+            source: 'System'
+        });
+    }
     await supabase.auth.signOut();
     set({ isAuthenticated: false, user: null });
     localStorage.removeItem('neondash-snapshots');
