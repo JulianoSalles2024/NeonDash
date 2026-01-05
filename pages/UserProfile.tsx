@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
-import { MOCK_USER_EVENTS, COLORS } from '../constants';
+import { COLORS } from '../constants';
 import { useUserStore } from '../store/useUserStore';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { motion } from 'framer-motion';
@@ -29,6 +29,9 @@ const UserProfile: React.FC = () => {
 
   // Ensure metrics exist (backward compatibility fallback)
   const metrics = user.metrics || { engagement: 50, support: 50, finance: 50, risk: 50 };
+
+  // Use Real History if available, otherwise show empty state
+  const userHistory = user.history || [];
 
   const getEventIcon = (type: string) => {
     switch (type) {
@@ -297,30 +300,37 @@ const UserProfile: React.FC = () => {
                     <div className="absolute left-[3rem] top-4 bottom-8 w-px bg-gradient-to-b from-white/20 via-white/10 to-transparent -translate-x-1/2"></div>
 
                     <div className="space-y-6">
-                        {MOCK_USER_EVENTS.map((event, index) => (
-                            <div key={event.id} className="relative flex items-start gap-6 group">
-                                
-                                {/* Connection Dot */}
-                                <div className={`
-                                    relative z-10 w-12 h-12 rounded-xl border border-white/10 bg-[#0B0F1A] flex items-center justify-center shrink-0 
-                                    transition-all duration-300 group-hover:scale-110 group-hover:border-white/30
-                                    ${getEventColor(event.type).replace('bg-', 'text-').split(' ')[0]} 
-                                `}>
-                                    {getEventIcon(event.type)}
-                                </div>
-                                
-                                {/* Card Content */}
-                                <Card className="flex-1 py-5 px-6 hover:bg-white/[0.04] transition-colors border-white/5 hover:border-white/20">
-                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
-                                        <p className="font-semibold text-white text-base">{event.title}</p>
-                                        <span className="text-xs text-gray-500 font-mono px-2 py-1 bg-white/5 rounded border border-white/5 whitespace-nowrap">
-                                            {event.timestamp}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-400 leading-relaxed">{event.description}</p>
-                                </Card>
+                        {userHistory.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-gray-500 text-sm">Nenhum evento registrado ainda.</p>
+                                <p className="text-gray-600 text-xs mt-1">Interações e atualizações aparecerão aqui.</p>
                             </div>
-                        ))}
+                        ) : (
+                            userHistory.map((event, index) => (
+                                <div key={event.id} className="relative flex items-start gap-6 group">
+                                    
+                                    {/* Connection Dot */}
+                                    <div className={`
+                                        relative z-10 w-12 h-12 rounded-xl border border-white/10 bg-[#0B0F1A] flex items-center justify-center shrink-0 
+                                        transition-all duration-300 group-hover:scale-110 group-hover:border-white/30
+                                        ${getEventColor(event.type).replace('bg-', 'text-').split(' ')[0]} 
+                                    `}>
+                                        {getEventIcon(event.type)}
+                                    </div>
+                                    
+                                    {/* Card Content */}
+                                    <Card className="flex-1 py-5 px-6 hover:bg-white/[0.04] transition-colors border-white/5 hover:border-white/20">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                                            <p className="font-semibold text-white text-base">{event.title}</p>
+                                            <span className="text-xs text-gray-500 font-mono px-2 py-1 bg-white/5 rounded border border-white/5 whitespace-nowrap">
+                                                {event.timestamp}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-400 leading-relaxed">{event.description}</p>
+                                    </Card>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </motion.div>

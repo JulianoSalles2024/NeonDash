@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { User, UserHealthMetrics, UserStatus } from '../types';
+import { User, UserHealthMetrics, UserStatus, UserEvent } from '../types';
 import { HealthWeights } from './useHealthStore';
 
 interface UserState {
@@ -26,6 +26,67 @@ const ensureMetrics = (metrics: any, baseScore: number): UserHealthMetrics => {
     finance: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
     risk: Math.min(100, Math.max(0, baseScore + (Math.random() * 20 - 10))),
   };
+};
+
+// Helper para gerar eventos baseados nas mudanças
+const generateEventFromChanges = (changes: Partial<User>, currentUser: User): UserEvent | null => {
+    const now = new Date().toLocaleString('pt-BR');
+    const id = Date.now().toString();
+
+    if (changes.lastActive && changes.lastActive !== currentUser.lastActive) {
+        // Formata data ISO para legível se possível
+        let dateDisplay = changes.lastActive;
+        try {
+            if (changes.lastActive.includes('-')) {
+                const d = new Date(changes.lastActive);
+                dateDisplay = d.toLocaleDateString() + ' às ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+        } catch (e) {}
+
+        return {
+            id,
+            type: 'info',
+            title: 'Acesso Registrado',
+            description: `Última atividade atualizada manualmente para ${dateDisplay}.`,
+            timestamp: now
+        };
+    }
+
+    if (changes.status && changes.status !== currentUser.status) {
+        const type = changes.status === UserStatus.CHURNED ? 'error' : 
+                     changes.status === UserStatus.ACTIVE ? 'success' : 'warning';
+        return {
+            id,
+            type,
+            title: 'Alteração de Status',
+            description: `Status do usuário alterado de "${currentUser.status}" para "${changes.status}".`,
+            timestamp: now
+        };
+    }
+
+    if (changes.plan && changes.plan !== currentUser.plan) {
+        return {
+            id,
+            type: 'success',
+            title: 'Mudança de Plano',
+            description: `Plano atualizado para ${changes.plan}.`,
+            timestamp: now
+        };
+    }
+
+    if (changes.healthScore !== undefined && Math.abs(changes.healthScore - currentUser.healthScore) > 10) {
+        const isDrop = changes.healthScore < currentUser.healthScore;
+        return {
+            id,
+            type: isDrop ? 'warning' : 'success',
+            title: 'Health Score Atualizado',
+            description: `A pontuação de saúde ${isDrop ? 'caiu' : 'subiu'} para ${changes.healthScore}.`,
+            timestamp: now
+        };
+    }
+
+    // Generic fallback for other significant changes could go here
+    return null;
 };
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -62,7 +123,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         // Mapeamento direto da coluna
         isTest: u.is_test || false,
         // Recupera churnReason de dentro das métricas (JSON)
-        churnReason: u.metrics?.churnReason || ''
+        churnReason: u.metrics?.churnReason || '',
+        // Recupera histórico de dentro das métricas (JSON)
+        history: u.metrics?.history || []
       }));
 
       set({ users: formattedUsers });
@@ -78,9 +141,19 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       // Injeta churnReason dentro das métricas para persistência sem migration
       const baseMetrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
-      const metricsWithChurn = {
+      
+      const initialHistory: UserEvent[] = [{
+          id: Date.now().toString(),
+          type: 'success',
+          title: 'Usuário Criado',
+          description: 'Cadastro realizado no sistema.',
+          timestamp: new Date().toLocaleString('pt-BR')
+      }];
+
+      const metricsWithData = {
           ...baseMetrics,
-          churnReason: userData.churnReason
+          churnReason: userData.churnReason,
+          history: initialHistory
       };
 
       // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia
@@ -96,7 +169,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           plan: userData.plan,
           mrr: userData.mrr,
           health_score: userData.healthScore || 100,
-          metrics: metricsWithChurn,
+          metrics: metricsWithData,
           last_active: new Date().toISOString(),
           created_at: safeCreatedAt,
           is_test: !!userData.isTest // Grava na coluna dedicada
@@ -125,7 +198,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`,
         tokensUsed: 0,
         isTest: data.is_test,
-        churnReason: data.metrics?.churnReason
+        churnReason: data.metrics?.churnReason,
+        history: data.metrics?.history
       };
 
       set((state) => ({ users: [newUser, ...state.users] }));
@@ -139,6 +213,17 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       const state = get();
       const currentUser = state.users.find(u => u.id === id);
+      if (!currentUser) return;
+
+      // 1. Gera Evento de Histórico
+      const newEvent = generateEventFromChanges(changes, currentUser);
+      
+      // 2. Prepara nova lista de histórico
+      let updatedHistory = currentUser.history || [];
+      if (newEvent) {
+          updatedHistory = [newEvent, ...updatedHistory];
+      }
+
       const dbPayload: any = {};
 
       if (changes.name !== undefined) dbPayload.name = changes.name;
@@ -155,26 +240,25 @@ export const useUserStore = create<UserState>((set, get) => ({
       // Update last_active directly if provided
       if (changes.lastActive !== undefined) dbPayload.last_active = changes.lastActive;
 
-      // Tratamento especial para metrics e churnReason
-      // Precisamos mesclar porque churnReason vive dentro do JSON metrics no DB
-      if (changes.metrics !== undefined || changes.churnReason !== undefined) {
-          const currentMetrics = currentUser?.metrics || ensureMetrics(null, 100);
-          const newMetrics = changes.metrics || currentMetrics;
+      // Tratamento especial para metrics, churnReason e HISTORY
+      // Precisamos mesclar porque tudo vive dentro do JSON metrics no DB
+      const currentMetrics = currentUser.metrics || ensureMetrics(null, 100);
+      const newMetricsBase = changes.metrics || currentMetrics;
           
-          // Se o status mudou para algo que não é churn, limpamos o motivo
-          // Se o usuário explicitamente mudou o motivo, usamos o novo
-          let finalChurnReason = changes.churnReason;
-          if (changes.status && changes.status !== UserStatus.CHURNED) {
-              finalChurnReason = '';
-          } else if (finalChurnReason === undefined) {
-              finalChurnReason = currentUser?.churnReason;
-          }
-
-          dbPayload.metrics = {
-              ...newMetrics,
-              churnReason: finalChurnReason
-          };
+      // Se o status mudou para algo que não é churn, limpamos o motivo
+      // Se o usuário explicitamente mudou o motivo, usamos o novo
+      let finalChurnReason = changes.churnReason;
+      if (changes.status && changes.status !== UserStatus.CHURNED) {
+          finalChurnReason = '';
+      } else if (finalChurnReason === undefined) {
+          finalChurnReason = currentUser.churnReason;
       }
+
+      dbPayload.metrics = {
+          ...newMetricsBase,
+          churnReason: finalChurnReason,
+          history: updatedHistory // Persiste o histórico atualizado
+      };
       
       // Tratamento de Data
       if (changes.joinedAt) {
@@ -194,7 +278,11 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       // Atualiza estado local
       set((state) => ({
-        users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
+        users: state.users.map((u) => u.id === id ? { 
+            ...u, 
+            ...changes,
+            history: updatedHistory 
+        } : u)
       }));
     } catch (err) {
       console.error('Error updating user:', err);

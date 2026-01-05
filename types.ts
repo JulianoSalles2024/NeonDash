@@ -27,6 +27,15 @@ export enum UserStatus {
     finance: number;    // 0-100 (High is good health)
     risk: number;       // 0-100 (High is safe, Low is risky)
   }
+
+  export interface UserEvent {
+    id: string;
+    type: 'info' | 'warning' | 'error' | 'success';
+    title: string;
+    description: string;
+    timestamp: string;
+    icon?: string;
+  }
   
   export interface User {
     id: string;
@@ -44,6 +53,7 @@ export enum UserStatus {
     mrr: number;
     isTest?: boolean; // Coluna dedicada no DB (is_test)
     churnReason?: string; // Motivo do cancelamento (persistido em metrics)
+    history?: UserEvent[]; // Log de eventos reais do usuário
   }
 
   export interface AgentVersion {
@@ -95,15 +105,6 @@ export enum UserStatus {
     name: string;
     value: number;
     value2?: number;
-  }
-
-  export interface UserEvent {
-    id: string;
-    type: 'info' | 'warning' | 'error' | 'success';
-    title: string;
-    description: string;
-    timestamp: string;
-    icon?: string;
   }
 
   export interface StreamEvent {
