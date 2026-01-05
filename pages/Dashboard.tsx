@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HealthScore from '../components/Dashboard/HealthScore';
@@ -11,7 +11,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2 } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 
 const Dashboard: React.FC = () => {
@@ -61,6 +61,31 @@ const Dashboard: React.FC = () => {
     }),
     refetchInterval: 30000, 
   });
+
+  // --- REAL-TIME STREAM ANALYTICS ---
+  const streamAnalytics = useMemo(() => {
+      const critical = events.filter(e => e.level === 'critical').length;
+      const warning = events.filter(e => e.level === 'warning').length;
+      
+      // Calculate Top Sources for Errors/Warnings
+      const sourceCounts: Record<string, number> = {};
+      events.forEach(e => {
+          if (e.level === 'critical' || e.level === 'warning') {
+              sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
+          }
+      });
+
+      const topSources = Object.entries(sourceCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([name, count], _, arr) => ({
+              name,
+              count,
+              percent: (count / (arr[0]?.[1] || 1)) * 100 // Relative to biggest bar
+          }));
+
+      return { critical, warning, topSources };
+  }, [events]);
 
   const isLoading = isUsersLoading || isMetricsLoading;
 
@@ -190,7 +215,13 @@ const Dashboard: React.FC = () => {
                         </div>
                 </div>
 
-                <div className="relative min-h-[500px] bg-white/[0.01] rounded-xl border border-white/5 p-4">
+                <div className="relative min-h-[500px] max-h-[600px] overflow-y-auto scrollbar-hide bg-white/[0.01] rounded-xl border border-white/5 p-4">
+                    {events.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 opacity-60">
+                            <Activity size={48} className="mb-4" />
+                            <p>Aguardando eventos do sistema...</p>
+                        </div>
+                    )}
                     <AnimatePresence initial={false}>
                         {events.map((event) => {
                             // Helper inside map
@@ -222,7 +253,7 @@ const Dashboard: React.FC = () => {
                                         p-3 rounded-lg shrink-0
                                         ${isCritical ? 'bg-red-500/10 text-red-500' : isWarning ? 'bg-yellow-500/10 text-yellow-500' : isSuccess ? 'bg-neon-green/10 text-neon-green' : 'bg-neon-blue/10 text-neon-blue'}
                                     `}>
-                                        {isCritical ? <AlertTriangle size={24} /> : isWarning ? <Zap size={24} /> : isSuccess ? <Activity size={24} /> : <Server size={24} />}
+                                        {isCritical ? <AlertTriangle size={24} /> : isWarning ? <Zap size={24} /> : isSuccess ? <CheckCircle size={24} /> : <Server size={24} />}
                                     </div>
 
                                     <div className="flex-1">
@@ -262,14 +293,14 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* 2. BOTTOM SECTION: KPIS MOVED HERE */}
+            {/* 2. BOTTOM SECTION: KPIS MOVED HERE (REAL DATA LINKED) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="border-red-500/30 bg-red-500/5 hover:border-red-500/50 transition-colors">
                         <div className="flex items-center gap-3 mb-2">
                                 <div className="p-2 rounded bg-red-500/20 text-red-500"><AlertTriangle size={20} /></div>
                                 <span className="text-sm font-bold text-red-400 uppercase">Críticos</span>
                         </div>
-                        <p className="text-4xl font-display font-bold text-white mt-4">3</p>
+                        <p className="text-4xl font-display font-bold text-white mt-4">{streamAnalytics.critical}</p>
                         <p className="text-xs text-red-300 mt-1">Requerem ação imediata</p>
                     </Card>
 
@@ -278,27 +309,33 @@ const Dashboard: React.FC = () => {
                                 <div className="p-2 rounded bg-yellow-500/20 text-yellow-500"><Activity size={20} /></div>
                                 <span className="text-sm font-bold text-yellow-500 uppercase">Avisos</span>
                         </div>
-                        <p className="text-4xl font-display font-bold text-white mt-4">12</p>
+                        <p className="text-4xl font-display font-bold text-white mt-4">{streamAnalytics.warning}</p>
                         <p className="text-xs text-yellow-300 mt-1">Monitorar de perto</p>
                     </Card>
                     
                     <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02]">
                         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-6">Fontes de Erro (Top 3)</h3>
                         <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">API Gateway</span> <span className="text-red-400 font-mono">8</span></div>
-                                <div className="w-full h-1.5 bg-white/10 rounded-full"><div className="h-full w-2/3 bg-red-500/50 rounded-full"></div></div>
-                            </div>
-                            
-                            <div>
-                                <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">Billing</span> <span className="text-yellow-400 font-mono">3</span></div>
-                                <div className="w-full h-1.5 bg-white/10 rounded-full"><div className="h-full w-1/4 bg-yellow-500/50 rounded-full"></div></div>
-                            </div>
-
-                            <div>
-                                <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">Auth Service</span> <span className="text-neon-blue font-mono">1</span></div>
-                                <div className="w-full h-1.5 bg-white/10 rounded-full"><div className="h-full w-[10%] bg-neon-blue/50 rounded-full"></div></div>
-                            </div>
+                            {streamAnalytics.topSources.length === 0 ? (
+                                <div className="text-center text-gray-500 py-4 text-xs">
+                                    Nenhum erro recente detectado.
+                                </div>
+                            ) : (
+                                streamAnalytics.topSources.map((source, idx) => (
+                                    <div key={source.name}>
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="text-gray-300">{source.name}</span> 
+                                            <span className={`${idx === 0 ? 'text-red-400' : 'text-gray-400'} font-mono`}>{source.count}</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-white/10 rounded-full">
+                                            <div 
+                                                className={`h-full rounded-full ${idx === 0 ? 'bg-red-500/50' : idx === 1 ? 'bg-yellow-500/50' : 'bg-blue-500/50'}`} 
+                                                style={{ width: `${source.percent}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
             </div>
