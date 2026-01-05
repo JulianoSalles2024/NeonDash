@@ -8,9 +8,11 @@ import { useUserStore } from '../store/useUserStore';
 const Retention: React.FC = () => {
     const { users } = useUserStore();
 
-    // --- CÁLCULOS DINÂMICOS ---
-    const totalUsers = users.length;
-    const churnedUsers = users.filter(u => u.status === 'Cancelado').length;
+    // --- CÁLCULOS DINÂMICOS (EXCLUDING TEST USERS) ---
+    const validUsers = users.filter(u => !u.isTest);
+
+    const totalUsers = validUsers.length;
+    const churnedUsers = validUsers.filter(u => u.status === 'Cancelado').length;
     
     // Cálculo de Churn Rate
     const churnRate = totalUsers > 0 ? (churnedUsers / (totalUsers + churnedUsers)) * 100 : 0;
@@ -18,9 +20,9 @@ const Retention: React.FC = () => {
     // Cálculo Simples de NDR (Net Dollar Retention)
     // NDR = (Receita Inicial + Expansão - Contração - Churn) / Receita Inicial
     // Aqui faremos uma aproximação baseada na saúde da base ativa vs total
-    const currentMRR = users.reduce((acc, u) => acc + (u.status !== 'Cancelado' ? u.mrr : 0), 0);
+    const currentMRR = validUsers.reduce((acc, u) => acc + (u.status !== 'Cancelado' ? u.mrr : 0), 0);
     // Simulamos que a receita "esperada" seria se todos pagassem, para ter uma base
-    const potentialMRR = users.reduce((acc, u) => acc + u.mrr, 0); 
+    const potentialMRR = validUsers.reduce((acc, u) => acc + u.mrr, 0); 
     
     const ndr = potentialMRR > 0 ? (currentMRR / potentialMRR) * 100 : 0;
 
@@ -114,7 +116,7 @@ const Retention: React.FC = () => {
                     {totalUsers === 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-gray-500 bg-white/[0.02] rounded-lg border border-white/5 border-dashed">
                             <Info size={32} className="mb-3 opacity-50" />
-                            <p>Adicione usuários para visualizar a análise de coorte.</p>
+                            <p>Adicione usuários reais para visualizar a análise de coorte.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">

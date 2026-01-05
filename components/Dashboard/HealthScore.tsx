@@ -11,9 +11,11 @@ interface HealthScoreProps {
 const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
   const { users } = useUserStore();
   
-  // Calculate REAL average from users
-  const totalScore = users.reduce((acc, user) => acc + (user.healthScore || 0), 0);
-  const globalScore = users.length > 0 ? Math.round(totalScore / users.length) : 0;
+  // Calculate REAL average from users (EXCLUDING TEST USERS)
+  const validUsers = users.filter(u => !u.isTest);
+  
+  const totalScore = validUsers.reduce((acc, user) => acc + (user.healthScore || 0), 0);
+  const globalScore = validUsers.length > 0 ? Math.round(totalScore / validUsers.length) : 0;
   
   // Dynamic Trend Logic
   // Como não temos histórico real no banco de dados local, simulamos baseados na saúde atual
@@ -21,7 +23,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
   let trendValue = 0;
   let trendDirection: 'up' | 'down' | 'neutral' = 'neutral';
 
-  if (users.length > 0) {
+  if (validUsers.length > 0) {
       if (globalScore >= 80) {
           trendValue = 2.4;
           trendDirection = 'up';
@@ -50,7 +52,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
             {/* Outer Ring */}
             <motion.div 
                 animate={{ 
-                    opacity: users.length > 0 ? [0.1, 0.3, 0.1] : 0.1, 
+                    opacity: validUsers.length > 0 ? [0.1, 0.3, 0.1] : 0.1, 
                 }}
                 transition={{ 
                     duration: 5, 
@@ -63,7 +65,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
             {/* Inner Ring */}
             <motion.div 
                 animate={{ 
-                    opacity: users.length > 0 ? [0.2, 0.5, 0.2] : 0.1, 
+                    opacity: validUsers.length > 0 ? [0.2, 0.5, 0.2] : 0.1, 
                 }}
                 transition={{ 
                     duration: 4, 
@@ -75,7 +77,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
             />
             
             {/* Core Glow */}
-            {users.length > 0 && (
+            {validUsers.length > 0 && (
                 <motion.div 
                     animate={{ opacity: [0.05, 0.15, 0.05] }}
                     transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
@@ -84,7 +86,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({ onClick }) => {
             )}
 
             {/* The Main Number */}
-            <span className={`relative z-10 font-display text-8xl font-bold tracking-tighter drop-shadow-[0_0_20px_rgba(124,252,243,0.2)] ${users.length === 0 ? 'text-gray-600' : 'text-white'}`}>
+            <span className={`relative z-10 font-display text-8xl font-bold tracking-tighter drop-shadow-[0_0_20px_rgba(124,252,243,0.2)] ${validUsers.length === 0 ? 'text-gray-600' : 'text-white'}`}>
                 {globalScore}
             </span>
        </div>

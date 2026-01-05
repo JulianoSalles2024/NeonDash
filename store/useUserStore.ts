@@ -54,9 +54,11 @@ export const useUserStore = create<UserState>((set, get) => ({
         mrr: u.mrr,
         healthScore: u.health_score,
         lastActive: u.last_active ? new Date(u.last_active).toLocaleDateString() : 'Nunca',
+        joinedAt: u.created_at, // Mantém ISO string para facilitar inputs de data e sorting
         metrics: u.metrics,
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
-        tokensUsed: 0 // Campo não persistido na tabela clients atualmente
+        tokensUsed: 0, // Campo não persistido na tabela clients atualmente
+        isTest: false // Default para false se não vier do banco (se o banco tiver a coluna, mapear aqui)
       }));
 
       set({ users: formattedUsers });
@@ -85,7 +87,8 @@ export const useUserStore = create<UserState>((set, get) => ({
           mrr: userData.mrr,
           health_score: userData.healthScore || 100,
           metrics: metrics,
-          last_active: new Date().toISOString()
+          last_active: new Date().toISOString(),
+          created_at: userData.joinedAt || new Date().toISOString() // Permite controle manual da data de entrada
         })
         .select()
         .single();
@@ -102,9 +105,11 @@ export const useUserStore = create<UserState>((set, get) => ({
         mrr: data.mrr,
         healthScore: data.health_score,
         lastActive: 'Agora',
+        joinedAt: data.created_at,
         metrics: data.metrics,
         avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`,
-        tokensUsed: 0
+        tokensUsed: 0,
+        isTest: userData.isTest
       };
 
       set((state) => ({ users: [newUser, ...state.users] }));
@@ -118,13 +123,15 @@ export const useUserStore = create<UserState>((set, get) => ({
       // Mapeamento reverso para DB
       const dbChanges: any = { ...changes };
       if (changes.healthScore !== undefined) dbChanges.health_score = changes.healthScore;
-      if (changes.lastActive !== undefined) dbChanges.last_active = new Date().toISOString(); // Simplificação
-
-      // Remove campos que não existem no DB
+      if (changes.joinedAt !== undefined) dbChanges.created_at = changes.joinedAt;
+      
+      // Remove campos que não existem no DB ou são readonly no update simples
       delete dbChanges.healthScore;
       delete dbChanges.lastActive;
+      delete dbChanges.joinedAt;
       delete dbChanges.avatar;
       delete dbChanges.tokensUsed;
+      delete dbChanges.isTest; // Se não houver coluna no banco ainda, removemos para não dar erro
 
       const { error } = await supabase
         .from('clients')

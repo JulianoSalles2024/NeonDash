@@ -3,11 +3,11 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
-type SortKey = keyof User | 'mrr' | 'healthScore';
+type SortKey = keyof User | 'mrr' | 'healthScore' | 'joinedAt';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -42,7 +42,8 @@ const UsersPage: React.FC = () => {
       plan: 'Starter',
       status: UserStatus.NEW,
       mrr: 0,
-      isTest: false
+      isTest: false,
+      joinedAt: ''
   });
 
   // --- KPI CALCULATIONS ---
@@ -128,7 +129,7 @@ const UsersPage: React.FC = () => {
 
   const handleExportCSV = () => {
       // Create CSV content
-      const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Teste'];
+      const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Entrada', 'Teste'];
       const rows = filteredUsers.map(u => [
           u.id,
           `"${u.name}"`,
@@ -138,6 +139,7 @@ const UsersPage: React.FC = () => {
           u.plan,
           u.healthScore,
           u.mrr,
+          u.joinedAt ? new Date(u.joinedAt).toLocaleDateString() : '',
           u.isTest ? 'SIM' : 'NAO'
       ]);
 
@@ -173,7 +175,8 @@ const UsersPage: React.FC = () => {
         plan: 'Starter',
         status: UserStatus.NEW,
         mrr: 0,
-        isTest: false
+        isTest: false,
+        joinedAt: new Date().toISOString().split('T')[0] // Default to today in YYYY-MM-DD
       });
       setIsFormOpen(true);
   };
@@ -181,7 +184,12 @@ const UsersPage: React.FC = () => {
   const handleEdit = (e: React.MouseEvent, user: User) => {
       e.stopPropagation(); 
       setSelectedUser(user);
-      setFormData({ ...user, isTest: user.isTest || false });
+      setFormData({ 
+          ...user, 
+          isTest: user.isTest || false,
+          // Extract just the date part YYYY-MM-DD for the input
+          joinedAt: user.joinedAt ? new Date(user.joinedAt).toISOString().split('T')[0] : '' 
+      });
       setIsFormOpen(true);
   };
 
@@ -344,6 +352,12 @@ const UsersPage: React.FC = () => {
                             <div className="flex items-center">Usuário / Empresa <SortIcon column="name" /></div>
                         </th>
                         <th 
+                            onClick={() => handleSort('joinedAt')}
+                            className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-white/5 hover:text-gray-300 transition-colors select-none"
+                        >
+                            <div className="flex items-center">Data Entrada <SortIcon column="joinedAt" /></div>
+                        </th>
+                        <th 
                             onClick={() => handleSort('status')}
                             className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-white/5 hover:text-gray-300 transition-colors select-none"
                         >
@@ -374,7 +388,7 @@ const UsersPage: React.FC = () => {
                 <tbody className="divide-y divide-white/5">
                     {filteredUsers.length === 0 ? (
                         <tr>
-                            <td colSpan={7} className="p-8 text-center text-gray-500">
+                            <td colSpan={8} className="p-8 text-center text-gray-500">
                                 Nenhum usuário encontrado para "{searchTerm}".
                             </td>
                         </tr>
@@ -405,6 +419,11 @@ const UsersPage: React.FC = () => {
                                             <p className="text-xs text-gray-500">{user.company}</p>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="p-4">
+                                    <span className="text-sm text-gray-400 font-mono">
+                                        {user.joinedAt ? new Date(user.joinedAt).toLocaleDateString() : '-'}
+                                    </span>
                                 </td>
                                 <td className="p-4">
                                     <Badge status={user.status} />
@@ -579,15 +598,30 @@ const UsersPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-gray-400 uppercase">Receita Mensal (RRC)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2 text-gray-500">R$</span>
-                                <input 
-                                    type="number" name="mrr" required value={formData.mrr} onChange={handleChange}
-                                    className="w-full bg-white/5 border border-white/10 rounded pl-10 pr-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors"
-                                    placeholder="0.00"
-                                />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Receita Mensal (RRC)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2 text-gray-500">R$</span>
+                                    <input 
+                                        type="number" name="mrr" required value={formData.mrr} onChange={handleChange}
+                                        className="w-full bg-white/5 border border-white/10 rounded pl-10 pr-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Data de Entrada</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-3 top-2.5 text-gray-500 pointer-events-none" size={14} />
+                                    <input 
+                                        type="date" 
+                                        name="joinedAt" 
+                                        value={formData.joinedAt} 
+                                        onChange={handleChange}
+                                        className="w-full bg-white/5 border border-white/10 rounded pl-9 pr-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors [color-scheme:dark]"
+                                    />
+                                </div>
                             </div>
                         </div>
 

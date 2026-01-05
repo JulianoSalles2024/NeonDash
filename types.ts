@@ -38,6 +38,7 @@ export enum UserStatus {
     healthScore: number;
     metrics: UserHealthMetrics; // New detailed metrics
     lastActive: string;
+    joinedAt: string; // Data de entrada/criação
     plan: 'Starter' | 'Pro' | 'Enterprise'; 
     tokensUsed: number;
     mrr: number;

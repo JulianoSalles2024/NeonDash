@@ -13,13 +13,16 @@ const AIStrip: React.FC = () => {
     const fetchInsight = async () => {
       setIsLoading(true);
       
+      // EXCLUDE TEST USERS FROM AI CONTEXT
+      const validUsers = users.filter(u => !u.isTest);
+
       // Prepare context for the AI
-      const activeUsers = users.filter(u => u.status === 'Ativo').length;
-      const churned = users.filter(u => u.status === 'Cancelado').length;
-      const risk = users.filter(u => u.status === 'Risco').length;
-      const totalMRR = users.reduce((acc, u) => acc + (u.status !== 'Cancelado' ? u.mrr : 0), 0);
+      const activeUsers = validUsers.filter(u => u.status === 'Ativo').length;
+      const churned = validUsers.filter(u => u.status === 'Cancelado').length;
+      const risk = validUsers.filter(u => u.status === 'Risco').length;
+      const totalMRR = validUsers.reduce((acc, u) => acc + (u.status !== 'Cancelado' ? u.mrr : 0), 0);
       
-      const context = `Total Usuários: ${users.length}, Ativos: ${activeUsers}, Risco: ${risk}, Churn: ${churned}, MRR Total: R$${totalMRR}.`;
+      const context = `Total Usuários Reais: ${validUsers.length}, Ativos: ${activeUsers}, Risco: ${risk}, Churn: ${churned}, MRR Total: R$${totalMRR}.`;
 
       const aiText = await generateDashboardInsight(context);
       

@@ -29,16 +29,18 @@ const Dashboard: React.FC = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // CALCULATE METRICS FROM REAL DATA
-  const totalUsers = users.length;
+  // --- KPI CALCULATIONS (EXCLUDING TEST USERS) ---
+  const validUsers = users.filter(u => !u.isTest);
+
+  const totalUsers = validUsers.length;
   // Calculate MRR (exclude churned users)
-  const totalMRR = users.reduce((acc, user) => acc + (user.status !== 'Cancelado' ? user.mrr : 0), 0);
+  const totalMRR = validUsers.reduce((acc, user) => acc + (user.status !== 'Cancelado' ? user.mrr : 0), 0);
   // Calculate Churn Rate (Churned / Total)
-  const churnedCount = users.filter(u => u.status === 'Cancelado').length;
-  const churnRate = users.length > 0 ? (churnedCount / users.length) * 100 : 0;
+  const churnedCount = validUsers.filter(u => u.status === 'Cancelado').length;
+  const churnRate = validUsers.length > 0 ? (churnedCount / validUsers.length) * 100 : 0;
   // Calculate Avg Health
-  const totalScore = users.reduce((acc, user) => acc + (user.healthScore || 0), 0);
-  const globalScore = users.length > 0 ? Math.round(totalScore / users.length) : 0;
+  const totalScore = validUsers.reduce((acc, user) => acc + (user.healthScore || 0), 0);
+  const globalScore = validUsers.length > 0 ? Math.round(totalScore / validUsers.length) : 0;
   
   // Get global timeframe
   const { timeframe } = useTimeframeStore();
@@ -107,7 +109,7 @@ const Dashboard: React.FC = () => {
             {/* Row 1: Vital Metrics (Full Width Row) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard 
-                    title="Total de Usuários"
+                    title="Total de Usuários (Reais)"
                     value={totalUsers}
                     subValue={data?.activeUsers.trend ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend.toFixed(3)}% vs média` : "0.0% vs média"}
                     subColor={data?.activeUsers.trend && data.activeUsers.trend > 0 ? "text-neon-green" : "text-gray-500"}
