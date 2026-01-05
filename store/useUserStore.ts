@@ -43,13 +43,13 @@ const pseudoRandom = (seed: string) => {
 
 // Mock Journey Generator
 const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
-    // Passos atualizados conforme solicitação
+    // Passos atualizados conforme solicitação: Ativação -> Estruturação -> Execução -> Valor -> Escala
     const steps: JourneyStep[] = [
         { id: '1', label: 'Ativação', description: 'O cliente entende a plataforma e consegue usá-la sem fricção.', isCompleted: false, isAutomated: true },
         { id: '2', label: 'Estruturação do Método', description: 'O método foi corretamente implementado e está pronto para execução.', isCompleted: false, isAutomated: true },
         { id: '3', label: 'Execução Assistida', description: 'Agentes estão sendo usados para criar narrativas, conteúdos e ativos com apoio do sistema.', isCompleted: false, isAutomated: false },
         { id: '4', label: 'Valor Gerado', description: 'O cliente obteve um ganho real (tempo, dinheiro, performance ou clareza).', isCompleted: false, isAutomated: false },
-        { id: '5', label: 'Escala (Upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
+        { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
     ];
 
     // Adjust based on user status simulating progress
