@@ -57,7 +57,6 @@ const UsersPage: React.FC = () => {
   );
 
   // Calculate ARPU (Average Revenue Per User) - "Média Planos"
-  // LÓGICA ALTERADA: Ignora usuários marcados como 'isTest'
   const validRevenueUsers = users.filter(u => !u.isTest);
   const totalMRR = validRevenueUsers.reduce((acc, u) => acc + u.mrr, 0);
   const arpu = validRevenueUsers.length > 0 ? totalMRR / validRevenueUsers.length : 0;
@@ -176,7 +175,7 @@ const UsersPage: React.FC = () => {
         status: UserStatus.NEW,
         mrr: 0,
         isTest: false,
-        joinedAt: new Date().toISOString().split('T')[0] // Default to today in YYYY-MM-DD
+        joinedAt: new Date().toISOString().split('T')[0]
       });
       setIsFormOpen(true);
   };
@@ -184,11 +183,20 @@ const UsersPage: React.FC = () => {
   const handleEdit = (e: React.MouseEvent, user: User) => {
       e.stopPropagation(); 
       setSelectedUser(user);
+      
+      let safeDate = '';
+      if (user.joinedAt) {
+          try {
+              safeDate = new Date(user.joinedAt).toISOString().split('T')[0];
+          } catch (err) {
+              console.warn('Invalid joinedAt date:', user.joinedAt);
+          }
+      }
+
       setFormData({ 
           ...user, 
           isTest: user.isTest || false,
-          // Extract just the date part YYYY-MM-DD for the input
-          joinedAt: user.joinedAt ? new Date(user.joinedAt).toISOString().split('T')[0] : '' 
+          joinedAt: safeDate
       });
       setIsFormOpen(true);
   };
@@ -236,7 +244,6 @@ const UsersPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value, type } = e.target;
       
-      // Handle checkbox for isTest
       if (type === 'checkbox') {
         const checked = (e.target as HTMLInputElement).checked;
         setFormData(prev => ({ ...prev, [name]: checked }));
@@ -248,7 +255,6 @@ const UsersPage: React.FC = () => {
       }
   };
 
-  // Helper for Sort Icon
   const SortIcon = ({ column }: { column: SortKey }) => {
       if (sortConfig.key !== column) return <ArrowUpDown size={12} className="opacity-30 ml-1" />;
       return sortConfig.direction === 'asc' 
@@ -256,7 +262,6 @@ const UsersPage: React.FC = () => {
         : <ArrowDown size={12} className="text-neon-cyan ml-1" />;
   };
 
-  // Helper for Status Signal Color
   const getStatusDotColor = (status: UserStatus) => {
     switch (status) {
       case UserStatus.ACTIVE: return 'bg-neon-green shadow-[0_0_8px_#34FFB0]';
@@ -276,7 +281,6 @@ const UsersPage: React.FC = () => {
                 <p className="text-sm text-gray-500 mt-1">Gerencie o acesso, planos e saúde da base de clientes.</p>
             </div>
             
-            {/* ACTIONS & SEARCH - MOVED TO HEADER */}
             <div className="flex flex-wrap gap-3 w-full md:w-auto">
                 <div className="relative group grow md:grow-0">
                     <Search className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-neon-cyan transition-colors" size={16} />
@@ -304,7 +308,6 @@ const UsersPage: React.FC = () => {
             </div>
         </div>
 
-        {/* --- KPI CARDS SECTION --- */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Card className="flex items-center gap-4 border-neon-blue/20 bg-neon-blue/5">
                 <div className="p-3 rounded-lg bg-neon-blue/10 text-neon-blue"><Users size={24}/></div>
@@ -401,7 +404,6 @@ const UsersPage: React.FC = () => {
                             >
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
-                                        {/* REPLACED AVATAR WITH PULSING SIGNAL */}
                                         <div className="relative flex h-3 w-3 shrink-0 ml-1">
                                             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${getStatusDotColor(user.status).split(' ')[0]}`}></span>
                                             <span className={`relative inline-flex rounded-full h-3 w-3 ${getStatusDotColor(user.status)}`}></span>
@@ -474,7 +476,6 @@ const UsersPage: React.FC = () => {
                 </tbody>
             </table>
 
-            {/* Pagination Footer */}
             {filteredUsers.length > 0 && (
                 <div className="p-4 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/[0.01]">
                     <span className="text-xs text-gray-500">
@@ -532,7 +533,6 @@ const UsersPage: React.FC = () => {
             )}
         </Card>
 
-        {/* --- FORM MODAL --- */}
         {isFormOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="w-full max-w-md bg-[#111625] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
@@ -625,7 +625,6 @@ const UsersPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Test User Toggle Switch */}
                         <div className="flex items-center justify-between p-3 rounded bg-white/5 border border-white/10">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${formData.isTest ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-gray-700/50 text-gray-400'}`}>
@@ -667,7 +666,6 @@ const UsersPage: React.FC = () => {
             </div>
         )}
 
-        {/* --- DELETE CONFIRMATION MODAL --- */}
         {isDeleteOpen && (
              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                 <div className="w-full max-w-sm bg-[#111625] border border-red-500/30 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.15)] overflow-hidden">
