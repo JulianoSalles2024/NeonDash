@@ -91,7 +91,8 @@ const UsersPage: React.FC = () => {
   const [accessDate, setAccessDate] = useState('');
 
   // --- KPI CALCULATIONS ---
-  const totalUsers = users.length;
+  // Total Users: Exclude only Churned (Include Active, Risk, New, Ghost)
+  const totalUsers = users.filter(u => u.status !== UserStatus.CHURNED).length;
   const activeUsers = users.filter(u => u.status === UserStatus.ACTIVE).length;
   const riskUsers = users.filter(u => u.status === UserStatus.RISK).length;
   

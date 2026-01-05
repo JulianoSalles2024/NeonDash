@@ -7,6 +7,7 @@ import AIStrip from '../components/Dashboard/AIStrip';
 import Card from '../components/ui/Card';
 import PageTransition from '../components/ui/PageTransition';
 import { COLORS } from '../constants';
+import { UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
@@ -30,17 +31,17 @@ const Dashboard: React.FC = () => {
   }, [fetchUsers]);
 
   // --- KPI CALCULATIONS ---
-  // Total Users: Include everyone (Active, Test, etc) for platform usage stats
-  const totalUsers = users.length;
+  // Total Users: Exclude ONLY Churned users (Keep Active, Risk, New, Ghost)
+  const totalUsers = users.filter(u => u.status !== UserStatus.CHURNED).length;
 
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
 
   // Calculate MRR (exclude churned users from revenue base)
-  const totalMRR = revenueUsers.reduce((acc, user) => acc + (user.status !== 'Cancelado' ? user.mrr : 0), 0);
+  const totalMRR = revenueUsers.reduce((acc, user) => acc + (user.status !== UserStatus.CHURNED ? user.mrr : 0), 0);
   
   // Calculate Churn Rate (Churned / Total Revenue Users)
-  const churnedCount = revenueUsers.filter(u => u.status === 'Cancelado').length;
+  const churnedCount = revenueUsers.filter(u => u.status === UserStatus.CHURNED).length;
   const churnRate = revenueUsers.length > 0 ? (churnedCount / revenueUsers.length) * 100 : 0;
   
   // Calculate Avg Health (Revenue Users only)
@@ -54,7 +55,7 @@ const Dashboard: React.FC = () => {
   const { data, isLoading: isMetricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', timeframe, totalUsers, totalMRR, churnRate], // Refetch when data changes
     queryFn: () => fetchDashboardMetrics(timeframe, {
-        users: totalUsers, // Visual chart includes all users
+        users: totalUsers, // Visual chart includes all non-churned users
         mrr: totalMRR,     // Financial chart excludes test users
         churn: churnRate,  // Retention chart excludes test users
         health: globalScore
