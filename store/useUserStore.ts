@@ -59,7 +59,9 @@ export const useUserStore = create<UserState>((set, get) => ({
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
         tokensUsed: 0,
         // Mapeamento direto da coluna
-        isTest: u.is_test || false
+        isTest: u.is_test || false,
+        // Recupera churnReason de dentro das métricas (JSON)
+        churnReason: u.metrics?.churnReason || ''
       }));
 
       set({ users: formattedUsers });
@@ -73,8 +75,13 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
     try {
-      const metrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
-      
+      // Injeta churnReason dentro das métricas para persistência sem migration
+      const baseMetrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
+      const metricsWithChurn = {
+          ...baseMetrics,
+          churnReason: userData.churnReason
+      };
+
       // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
           ? `${userData.joinedAt}T12:00:00Z`
@@ -88,7 +95,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           plan: userData.plan,
           mrr: userData.mrr,
           health_score: userData.healthScore || 100,
-          metrics: metrics,
+          metrics: metricsWithChurn,
           last_active: new Date().toISOString(),
           created_at: safeCreatedAt,
           is_test: !!userData.isTest // Grava na coluna dedicada
@@ -116,7 +123,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         metrics: data.metrics,
         avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`,
         tokensUsed: 0,
-        isTest: data.is_test
+        isTest: data.is_test,
+        churnReason: data.metrics?.churnReason
       };
 
       set((state) => ({ users: [newUser, ...state.users] }));
@@ -128,6 +136,8 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUser: async (id, changes) => {
     try {
+      const state = get();
+      const currentUser = state.users.find(u => u.id === id);
       const dbPayload: any = {};
 
       if (changes.name !== undefined) dbPayload.name = changes.name;
@@ -137,10 +147,30 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.plan !== undefined) dbPayload.plan = changes.plan;
       if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
       if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
-      if (changes.metrics !== undefined) dbPayload.metrics = changes.metrics;
       
       // Mapeamento direto para a coluna
       if (changes.isTest !== undefined) dbPayload.is_test = changes.isTest;
+      
+      // Tratamento especial para metrics e churnReason
+      // Precisamos mesclar porque churnReason vive dentro do JSON metrics no DB
+      if (changes.metrics !== undefined || changes.churnReason !== undefined) {
+          const currentMetrics = currentUser?.metrics || ensureMetrics(null, 100);
+          const newMetrics = changes.metrics || currentMetrics;
+          
+          // Se o status mudou para algo que não é churn, limpamos o motivo
+          // Se o usuário explicitamente mudou o motivo, usamos o novo
+          let finalChurnReason = changes.churnReason;
+          if (changes.status && changes.status !== UserStatus.CHURNED) {
+              finalChurnReason = '';
+          } else if (finalChurnReason === undefined) {
+              finalChurnReason = currentUser?.churnReason;
+          }
+
+          dbPayload.metrics = {
+              ...newMetrics,
+              churnReason: finalChurnReason
+          };
+      }
       
       // Tratamento de Data
       if (changes.joinedAt) {

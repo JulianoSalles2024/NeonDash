@@ -43,6 +43,7 @@ export enum UserStatus {
     tokensUsed: number;
     mrr: number;
     isTest?: boolean; // Coluna dedicada no DB (is_test)
+    churnReason?: string; // Motivo do cancelamento (persistido em metrics)
   }
 
   export interface AgentVersion {

@@ -30,6 +30,15 @@ const getLocalDateString = (date?: string | Date) => {
     return `${year}-${month}-${day}`;
 };
 
+// Opções de Churn
+const CHURN_REASONS = [
+    "Carrinho Abandonado",
+    "Cancelou",
+    "Não Renovou",
+    "Lead Frio",
+    "Churn Manual"
+];
+
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { addToast } = useToastStore();
@@ -57,7 +66,8 @@ const UsersPage: React.FC = () => {
       status: UserStatus.NEW,
       mrr: 0,
       isTest: false,
-      joinedAt: ''
+      joinedAt: '',
+      churnReason: ''
   });
 
   // --- KPI CALCULATIONS ---
@@ -190,7 +200,8 @@ const UsersPage: React.FC = () => {
         mrr: 0,
         isTest: false,
         // Usa data local para "Hoje"
-        joinedAt: getLocalDateString()
+        joinedAt: getLocalDateString(),
+        churnReason: ''
       });
       setIsFormOpen(true);
   };
@@ -206,7 +217,8 @@ const UsersPage: React.FC = () => {
       setFormData({ 
           ...user, 
           isTest: !!user.isTest, 
-          joinedAt: safeDate
+          joinedAt: safeDate,
+          churnReason: user.churnReason || ''
       });
       setIsFormOpen(true);
   };
@@ -619,6 +631,24 @@ const UsersPage: React.FC = () => {
                                 </select>
                             </div>
                         </div>
+
+                        {/* --- Motivo do Churn (Condicional) --- */}
+                        {formData.status === UserStatus.CHURNED && (
+                            <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="text-xs font-semibold text-red-400 uppercase">Motivo do Churn</label>
+                                <select 
+                                    name="churnReason" 
+                                    value={formData.churnReason} 
+                                    onChange={handleChange}
+                                    className="w-full bg-white/5 border border-red-500/30 rounded px-3 py-2 text-white focus:border-red-500 focus:outline-none transition-colors [&>option]:bg-dark-bg"
+                                >
+                                    <option value="" disabled>Selecione o motivo...</option>
+                                    {CHURN_REASONS.map(reason => (
+                                        <option key={reason} value={reason}>{reason}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
