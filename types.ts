@@ -26,6 +26,7 @@ export enum UserStatus {
     support: number;    // 0-100 (High is good health)
     finance: number;    // 0-100 (High is good health)
     risk: number;       // 0-100 (High is safe, Low is risky)
+    isTest?: boolean;   // Flag persistida via JSONB
   }
   
   export interface User {

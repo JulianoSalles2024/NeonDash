@@ -58,7 +58,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         metrics: u.metrics,
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
         tokensUsed: 0,
-        isTest: u.is_test || false
+        // BACKWARD COMPATIBILITY: Verifica se está no JSON de métricas ou na coluna legada (se existir)
+        isTest: u.metrics?.isTest || u.is_test || false
       }));
 
       set({ users: formattedUsers });
@@ -72,9 +73,16 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
     try {
-      const metrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
+      const baseMetrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
       
-      // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia dependendo do fuso horário local
+      // ESTRATÉGIA DE SALVAMENTO: Salva isTest DENTRO de metrics (JSONB)
+      // Isso evita o erro "Column is_test does not exist"
+      const metricsPayload = {
+          ...baseMetrics,
+          isTest: !!userData.isTest
+      };
+
+      // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia
       const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
           ? `${userData.joinedAt}T12:00:00Z`
           : (userData.joinedAt || new Date().toISOString());
@@ -87,10 +95,10 @@ export const useUserStore = create<UserState>((set, get) => ({
           plan: userData.plan,
           mrr: userData.mrr,
           health_score: userData.healthScore || 100,
-          metrics: metrics,
+          metrics: metricsPayload, // Salvando no JSON
           last_active: new Date().toISOString(),
           created_at: safeCreatedAt,
-          is_test: !!userData.isTest
+          // Removido envio da coluna is_test para evitar crash
       };
 
       const { data, error } = await supabase
@@ -115,7 +123,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         metrics: data.metrics,
         avatar: `https://ui-avatars.com/api/?name=${data.name}&background=random`,
         tokensUsed: 0,
-        isTest: data.is_test
+        isTest: !!userData.isTest
       };
 
       set((state) => ({ users: [newUser, ...state.users] }));
@@ -127,8 +135,9 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   updateUser: async (id, changes) => {
     try {
-      // WHITELIST STRATEGY: Construímos um objeto APENAS com campos permitidos.
-      // Isso evita que campos de UI (como avatar, tokensUsed) quebrem o update no Supabase.
+      const state = get();
+      const currentUser = state.users.find(u => u.id === id);
+      
       const dbPayload: any = {};
 
       if (changes.name !== undefined) dbPayload.name = changes.name;
@@ -137,20 +146,30 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (changes.status !== undefined) dbPayload.status = changes.status;
       if (changes.plan !== undefined) dbPayload.plan = changes.plan;
       if (changes.mrr !== undefined) dbPayload.mrr = changes.mrr;
-      if (changes.metrics !== undefined) dbPayload.metrics = changes.metrics;
-      
-      // Campos mapeados (camelCase -> snake_case)
       if (changes.healthScore !== undefined) dbPayload.health_score = changes.healthScore;
-      if (typeof changes.isTest === 'boolean') dbPayload.is_test = changes.isTest;
       
-      // Tratamento de Data (Timezone Fix)
+      // Tratamento de Data
       if (changes.joinedAt) {
           if (changes.joinedAt.length === 10) {
-              // Se vier do input date (YYYY-MM-DD), adicionamos hora fixa
               dbPayload.created_at = `${changes.joinedAt}T12:00:00Z`;
           } else {
               dbPayload.created_at = changes.joinedAt;
           }
+      }
+
+      // Merge de Métricas e isTest no JSONB
+      // Se qualquer um dos dois mudar, precisamos atualizar o objeto metrics inteiro
+      if (changes.metrics || changes.isTest !== undefined) {
+          const currentMetrics = currentUser?.metrics || ensureMetrics(null, 100);
+          const newBaseMetrics = changes.metrics || currentMetrics;
+          
+          // Preserva o isTest atual se não for passado na mudança, ou usa o novo valor
+          const newIsTest = changes.isTest !== undefined ? changes.isTest : currentUser?.isTest;
+
+          dbPayload.metrics = {
+              ...newBaseMetrics,
+              isTest: newIsTest
+          };
       }
 
       const { error } = await supabase
@@ -160,13 +179,13 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      // Atualiza estado local imediatamente (Optimistic UI)
+      // Atualiza estado local
       set((state) => ({
         users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
       }));
     } catch (err) {
       console.error('Error updating user:', err);
-      throw err; // Relança para a UI exibir a mensagem exata
+      throw err;
     }
   },
 
