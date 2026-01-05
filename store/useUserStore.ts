@@ -53,7 +53,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         plan: u.plan,
         mrr: u.mrr,
         healthScore: u.health_score,
-        lastActive: u.last_active ? new Date(u.last_active).toLocaleDateString() : 'Nunca',
+        // Mantém formato ISO cru ou 'Nunca' para permitir ordenação correta na UI
+        lastActive: u.last_active || 'Nunca',
         joinedAt: u.created_at,
         metrics: u.metrics,
         avatar: `https://ui-avatars.com/api/?name=${u.name}&background=random`,
@@ -151,6 +152,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       // Mapeamento direto para a coluna
       if (changes.isTest !== undefined) dbPayload.is_test = changes.isTest;
       
+      // Update last_active directly if provided
+      if (changes.lastActive !== undefined) dbPayload.last_active = changes.lastActive;
+
       // Tratamento especial para metrics e churnReason
       // Precisamos mesclar porque churnReason vive dentro do JSON metrics no DB
       if (changes.metrics !== undefined || changes.churnReason !== undefined) {

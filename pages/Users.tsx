@@ -370,7 +370,8 @@ const UsersPage: React.FC = () => {
 
   // Helper para mostrar data amigável na tabela
   const formatLastActive = (dateStr: string) => {
-      if (dateStr === 'Agora' || dateStr === 'Nunca') return dateStr;
+      if (!dateStr || dateStr === 'Nunca') return 'Nunca';
+      if (dateStr === 'Agora') return 'Agora';
       // Tenta fazer parse se for ISO
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) {
@@ -484,7 +485,12 @@ const UsersPage: React.FC = () => {
                         >
                              <div className="flex items-center">Health Score <SortIcon column="healthScore" /></div>
                         </th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Último Acesso</th>
+                        <th 
+                            onClick={() => handleSort('lastActive')}
+                            className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-white/5 hover:text-gray-300 transition-colors select-none"
+                        >
+                             <div className="flex items-center">Último Acesso <SortIcon column="lastActive" /></div>
+                        </th>
                         <th 
                             onClick={() => handleSort('mrr')}
                             className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right cursor-pointer hover:bg-white/5 hover:text-gray-300 transition-colors select-none"

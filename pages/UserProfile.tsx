@@ -48,6 +48,14 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  // Helper para formatar data crua do DB
+  const formatLastActive = (dateStr: string) => {
+      if (!dateStr || dateStr === 'Nunca') return 'Nunca';
+      if (dateStr === 'Agora') return 'Agora';
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) ? d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : dateStr;
+  };
+
   // Mock mini chart data specifically for this user view
   const USER_ACTIVITY_DATA = [
       { name: 'Seg', value: 20 }, { name: 'Ter', value: 45 }, { name: 'Qua', value: 30 }, 
@@ -118,7 +126,7 @@ const UserProfile: React.FC = () => {
                         <Shield size={14} className="text-neon-purple" /> Plano {user.plan}
                     </span>
                     <span className="flex items-center gap-2 hover:text-white transition-colors cursor-default border border-white/5 bg-white/5 px-3 py-1.5 rounded-md">
-                        <Clock size={14} className="text-gray-400" /> Visto {user.lastActive}
+                        <Clock size={14} className="text-gray-400" /> Visto {formatLastActive(user.lastActive)}
                     </span>
                 </div>
             </div>
