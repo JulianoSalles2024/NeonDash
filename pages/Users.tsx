@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database, Flag, Target, Layout } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -53,6 +53,35 @@ const CHURN_REASONS = [
     "Lead Frio",
     "Churn Manual"
 ];
+
+// Helper Component para Badge de Jornada
+const JourneyBadge = ({ status }: { status?: string }) => {
+    if (!status || status === 'not_started') {
+        return (
+            <span className="hidden xl:inline-flex items-center gap-1 text-[9px] font-bold bg-white/5 text-gray-500 px-1.5 py-0.5 rounded border border-white/10 uppercase tracking-wide" title="Jornada: Configuração Inicial">
+                <Layout size={8} /> Setup
+            </span>
+        );
+    }
+    
+    if (status === 'achieved') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-neon-green/20 text-neon-green px-1.5 py-0.5 rounded border border-neon-green/30 uppercase tracking-wide shadow-[0_0_8px_rgba(52,255,176,0.2)]" title="Jornada: Resultado Atingido">
+                <Flag size={8} fill="currentColor" /> Success
+            </span>
+        );
+    }
+
+    if (status === 'in_progress') {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-neon-blue/20 text-neon-blue px-1.5 py-0.5 rounded border border-neon-blue/30 uppercase tracking-wide" title="Jornada: Em Progresso">
+                <Target size={8} /> Onboarding
+            </span>
+        );
+    }
+
+    return null;
+};
 
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -523,13 +552,17 @@ const UsersPage: React.FC = () => {
                                         </div>
                                         
                                         <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <p className="text-sm font-medium text-white group-hover:text-neon-cyan transition-colors">{user.name}</p>
+                                                
+                                                {/* BADGES ROW */}
                                                 {user.isTest && (
                                                     <span className="text-[9px] font-bold bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded border border-gray-600 uppercase tracking-wide" title="Usuário de Teste (Não conta para métricas)">
                                                         TESTE
                                                     </span>
                                                 )}
+                                                
+                                                <JourneyBadge status={user.journey?.status} />
                                             </div>
                                             <p className="text-xs text-gray-500">{user.company}</p>
                                         </div>
