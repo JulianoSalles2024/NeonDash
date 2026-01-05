@@ -17,6 +17,19 @@ interface SortConfig {
 
 const ITEMS_PER_PAGE = 15;
 
+// Helper para obter data local YYYY-MM-DD (consistente com input date)
+const getLocalDateString = (date?: string | Date) => {
+    const d = date ? new Date(date) : new Date();
+    if (isNaN(d.getTime())) return '';
+    
+    // Pega componentes locais
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+};
+
 const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { addToast } = useToastStore();
@@ -176,7 +189,8 @@ const UsersPage: React.FC = () => {
         status: UserStatus.NEW,
         mrr: 0,
         isTest: false,
-        joinedAt: new Date().toISOString().split('T')[0]
+        // Usa data local para "Hoje"
+        joinedAt: getLocalDateString()
       });
       setIsFormOpen(true);
   };
@@ -185,15 +199,9 @@ const UsersPage: React.FC = () => {
       e.stopPropagation(); 
       setSelectedUser(user);
       
-      let safeDate = '';
-      if (user.joinedAt) {
-          try {
-              // Converte para YYYY-MM-DD para o input type="date"
-              safeDate = new Date(user.joinedAt).toISOString().split('T')[0];
-          } catch (err) {
-              console.warn('Invalid joinedAt date:', user.joinedAt);
-          }
-      }
+      // Usa helper para converter a data do banco para YYYY-MM-DD (Input Date)
+      // respeitando o fuso local do navegador
+      const safeDate = user.joinedAt ? getLocalDateString(user.joinedAt) : '';
 
       setFormData({ 
           ...user, 
