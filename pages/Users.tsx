@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -27,6 +27,7 @@ const UsersPage: React.FC = () => {
   // --- UI STATE ---
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'healthScore', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -187,6 +188,7 @@ const UsersPage: React.FC = () => {
       let safeDate = '';
       if (user.joinedAt) {
           try {
+              // Converte para YYYY-MM-DD para o input type="date"
               safeDate = new Date(user.joinedAt).toISOString().split('T')[0];
           } catch (err) {
               console.warn('Invalid joinedAt date:', user.joinedAt);
@@ -195,7 +197,7 @@ const UsersPage: React.FC = () => {
 
       setFormData({ 
           ...user, 
-          isTest: !!user.isTest, // Garante boolean
+          isTest: !!user.isTest, 
           joinedAt: safeDate
       });
       setIsFormOpen(true);
@@ -207,38 +209,48 @@ const UsersPage: React.FC = () => {
       setIsDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
       if (selectedUser) {
-          deleteUser(selectedUser.id);
-          addToast({
-              type: 'success',
-              title: 'Usuário Removido',
-              message: `${selectedUser.name} foi removido com sucesso.`
-          });
-          setIsDeleteOpen(false);
-          setSelectedUser(null);
+          setIsSaving(true);
+          try {
+            await deleteUser(selectedUser.id);
+            addToast({
+                type: 'success',
+                title: 'Usuário Removido',
+                message: `${selectedUser.name} foi removido com sucesso.`
+            });
+            setIsDeleteOpen(false);
+            setSelectedUser(null);
+          } catch (error) {
+            addToast({ type: 'error', title: 'Erro', message: 'Falha ao excluir usuário.' });
+          } finally {
+            setIsSaving(false);
+          }
       }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      setIsSaving(true);
       
-      if (selectedUser) {
-          updateUser(selectedUser.id, formData);
-          addToast({ type: 'success', title: 'Perfil Atualizado', message: 'Alterações salvas.' });
-      } else {
-          const newUser: User = {
-              id: Date.now().toString(),
-              avatar: `https://picsum.photos/40/40?random=${Date.now()}`,
-              healthScore: 100,
-              lastActive: 'Agora',
-              tokensUsed: 0,
-              ...formData as User
-          };
-          addUser(newUser);
-          addToast({ type: 'success', title: 'Novo Usuário Criado', message: `${newUser.name} adicionado.` });
+      try {
+        if (selectedUser) {
+            await updateUser(selectedUser.id, formData);
+            addToast({ type: 'success', title: 'Perfil Atualizado', message: 'Alterações salvas com sucesso.' });
+        } else {
+            await addUser(formData);
+            addToast({ type: 'success', title: 'Novo Usuário Criado', message: `${formData.name} adicionado.` });
+        }
+        setIsFormOpen(false);
+      } catch (error) {
+        addToast({ 
+            type: 'error', 
+            title: 'Erro ao Salvar', 
+            message: 'Não foi possível salvar os dados. Verifique a conexão ou tente novamente.' 
+        });
+      } finally {
+        setIsSaving(false);
       }
-      setIsFormOpen(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -650,15 +662,21 @@ const UsersPage: React.FC = () => {
                         <div className="pt-4 flex justify-end gap-3">
                             <button 
                                 type="button" onClick={() => setIsFormOpen(false)}
-                                className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+                                disabled={isSaving}
+                                className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded transition-colors disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 type="submit"
-                                className="px-6 py-2 bg-neon-cyan text-dark-bg font-bold rounded text-sm hover:bg-neon-blue transition-colors flex items-center gap-2"
+                                disabled={isSaving}
+                                className={`
+                                    px-6 py-2 bg-neon-cyan text-dark-bg font-bold rounded text-sm hover:bg-neon-blue transition-colors flex items-center gap-2
+                                    ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}
+                                `}
                             >
-                                <Check size={16} /> Salvar
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                {isSaving ? 'Salvando...' : 'Salvar'}
                             </button>
                         </div>
                     </form>
@@ -682,14 +700,17 @@ const UsersPage: React.FC = () => {
                         <div className="flex gap-3 justify-center">
                             <button 
                                 onClick={() => setIsDeleteOpen(false)}
+                                disabled={isSaving}
                                 className="px-4 py-2 bg-white/5 border border-white/10 rounded text-sm text-white hover:bg-white/10 transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={confirmDelete}
-                                className="px-4 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors font-medium shadow-lg shadow-red-500/20"
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors font-medium shadow-lg shadow-red-500/20 flex items-center gap-2"
                             >
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : null}
                                 Confirmar Exclusão
                             </button>
                         </div>

@@ -74,6 +74,11 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       const metrics = userData.metrics || ensureMetrics(null, userData.healthScore || 100);
       
+      // Fix Timezone: Força meio-dia UTC para evitar que a data volte 1 dia dependendo do fuso horário local
+      const safeCreatedAt = userData.joinedAt && userData.joinedAt.length === 10
+          ? `${userData.joinedAt}T12:00:00Z`
+          : (userData.joinedAt || new Date().toISOString());
+
       const payload = {
           name: userData.name,
           email: userData.email,
@@ -84,8 +89,8 @@ export const useUserStore = create<UserState>((set, get) => ({
           health_score: userData.healthScore || 100,
           metrics: metrics,
           last_active: new Date().toISOString(),
-          created_at: userData.joinedAt || new Date().toISOString(),
-          is_test: !!userData.isTest // Força boolean
+          created_at: safeCreatedAt,
+          is_test: !!userData.isTest
       };
 
       const { data, error } = await supabase
@@ -116,6 +121,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       set((state) => ({ users: [newUser, ...state.users] }));
     } catch (err) {
       console.error('Error adding user:', err);
+      throw err; // Relança para a UI saber que falhou
     }
   },
 
@@ -124,25 +130,32 @@ export const useUserStore = create<UserState>((set, get) => ({
       // Cria objeto de update para DB
       const dbChanges: any = { ...changes };
       
-      // Mapeia explicitamente campos camelCase -> snake_case
+      // 1. Tratamento de Data (Timezone Fix)
+      // Se a data vier como 'YYYY-MM-DD', adicionamos T12:00:00Z para fixar no meio do dia UTC.
+      if (changes.joinedAt) {
+          if (changes.joinedAt.length === 10) {
+              dbChanges.created_at = `${changes.joinedAt}T12:00:00Z`;
+          } else {
+              dbChanges.created_at = changes.joinedAt;
+          }
+      }
+
+      // 2. Mapeamento snake_case
       if (typeof changes.isTest === 'boolean') {
           dbChanges.is_test = changes.isTest;
-      }
-      if (changes.joinedAt) {
-          dbChanges.created_at = changes.joinedAt;
       }
       if (changes.healthScore !== undefined) {
           dbChanges.health_score = changes.healthScore;
       }
       
-      // Remove campos que não existem na tabela ou são readonly/locais
+      // 3. Limpeza de campos frontend-only ou readonly
       delete dbChanges.isTest;
       delete dbChanges.joinedAt;
       delete dbChanges.healthScore;
       delete dbChanges.lastActive;
       delete dbChanges.avatar;
       delete dbChanges.tokensUsed;
-      delete dbChanges.id; // Evita enviar ID no body do update
+      delete dbChanges.id; 
 
       const { error } = await supabase
         .from('clients')
@@ -151,12 +164,15 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (error) throw error;
 
-      // Atualiza estado local
+      // 4. Atualiza estado local
+      // Precisamos garantir que o estado local reflita a data formatada, 
+      // mas como o 'fetchUsers' trará o valor real depois, aqui atualizamos com o input para feedback imediato.
       set((state) => ({
         users: state.users.map((u) => u.id === id ? { ...u, ...changes } : u)
       }));
     } catch (err) {
       console.error('Error updating user:', err);
+      throw err; // Relança para a UI tratar
     }
   },
 
@@ -168,6 +184,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       set((state) => ({ users: state.users.filter((u) => u.id !== id) }));
     } catch (err) {
       console.error('Error deleting user:', err);
+      throw err;
     }
   },
 

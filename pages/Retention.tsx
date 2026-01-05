@@ -5,6 +5,26 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { Users, TrendingDown, Info, Calendar } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 
+// Função auxiliar para parsing de datas (ISO ou PT-BR DD/MM/YYYY)
+const parseDateSafe = (dateStr: string): Date => {
+    if (!dateStr || dateStr === 'Nunca') return new Date(0); 
+    if (dateStr === 'Agora') return new Date();
+    
+    // Tenta formato ISO (YYYY-MM-DD)
+    const isoDate = new Date(dateStr);
+    if (!isNaN(isoDate.getTime()) && dateStr.includes('-')) return isoDate;
+
+    // Tenta formato PT-BR (DD/MM/YYYY)
+    if (dateStr.includes('/')) {
+        const [day, month, year] = dateStr.split('/').map(Number);
+        if (day && month && year) {
+            return new Date(year, month - 1, day);
+        }
+    }
+    
+    return new Date(); // Fallback
+};
+
 const Retention: React.FC = () => {
     const { users } = useUserStore();
     const [evolutionPeriod, setEvolutionPeriod] = useState<'week' | 'month' | 'year'>('year');
@@ -24,38 +44,110 @@ const Retention: React.FC = () => {
     
     const ndr = potentialMRR > 0 ? (currentMRR / potentialMRR) * 100 : 0;
 
-    // --- GERADOR DE DADOS DE EVOLUÇÃO ---
+    // --- PROCESSAMENTO DE DADOS REAIS PARA O GRÁFICO ---
     const evolutionData = useMemo(() => {
-        const baseActive = totalUsers > 0 ? totalUsers : 100; // Fallback para visualização se vazio
-        const baseChurn = churnedUsers > 0 ? churnedUsers : 5;
+        const now = new Date();
+        const dataPoints: any[] = [];
+        let iterations = 0;
+        let dateFormat: (d: Date) => string;
+        let stepDate: (d: Date, i: number) => Date;
 
-        // Funções auxiliares de randomização controlada
-        const noise = (val: number) => Math.floor(val + (Math.random() * val * 0.2 - val * 0.1));
-        
+        // 1. Definir janela de tempo e labels
         if (evolutionPeriod === 'week') {
-            return ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'].map((day, i) => ({
-                name: day,
-                active: noise(baseActive + (i * 2)), // Crescimento leve
-                churn: Math.max(0, noise(baseChurn / 4))
-            }));
+            iterations = 7;
+            dateFormat = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short' });
+            stepDate = (d, i) => {
+                const newDate = new Date(d);
+                newDate.setDate(d.getDate() - i);
+                newDate.setHours(23, 59, 59, 999);
+                return newDate;
+            };
         } else if (evolutionPeriod === 'month') {
-            return Array.from({ length: 15 }, (_, i) => ({
-                name: `Dia ${i * 2 + 1}`,
-                active: noise(baseActive * 0.8 + (i * baseActive * 0.02)),
-                churn: Math.max(0, noise(baseChurn / 2))
-            }));
+            iterations = 30; // Últimos 30 dias
+            dateFormat = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            stepDate = (d, i) => {
+                const newDate = new Date(d);
+                newDate.setDate(d.getDate() - i);
+                newDate.setHours(23, 59, 59, 999);
+                return newDate;
+            };
         } else {
-            // Year
-            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-            return months.map((month, i) => ({
-                name: month,
-                active: noise(baseActive * 0.4 + (i * baseActive * 0.08)), // Crescimento anual simulado
-                churn: Math.max(0, noise(baseChurn + (i * 0.5)))
-            }));
+            iterations = 12; // Últimos 12 meses
+            dateFormat = (d) => d.toLocaleDateString('pt-BR', { month: 'short' });
+            stepDate = (d, i) => {
+                const newDate = new Date(d);
+                newDate.setMonth(d.getMonth() - i);
+                // Fim do mês para pegar todo acumulado
+                newDate.setMonth(newDate.getMonth() + 1); 
+                newDate.setDate(0);
+                newDate.setHours(23, 59, 59, 999);
+                return newDate;
+            };
         }
-    }, [evolutionPeriod, totalUsers, churnedUsers]);
 
-    // --- DADOS COHORT (MOCK VISUAL) ---
+        // 2. Construir Timeline (do passado para o presente)
+        // Geramos os pontos de tempo (buckets)
+        const buckets = [];
+        for (let i = iterations - 1; i >= 0; i--) {
+            buckets.push({
+                date: stepDate(now, i),
+                label: '' // Será preenchido
+            });
+        }
+        
+        // Atualiza labels (o stepDate pode mudar a data original, então fazemos isso depois da lógica de data)
+        buckets.forEach(b => b.label = dateFormat(b.date));
+
+        // 3. Popular Buckets com dados Reais
+        buckets.forEach(bucket => {
+            const pointDate = bucket.date;
+            let activeCount = 0;
+            let churnCount = 0;
+
+            validUsers.forEach(user => {
+                const joinDate = parseDateSafe(user.joinedAt);
+                
+                // Usuário existe neste ponto da história?
+                if (joinDate <= pointDate) {
+                    // É Churn?
+                    if (user.status === 'Cancelado') {
+                        // Data estimada do churn (usamos lastActive ou fallback para joinedAt se inconsistente)
+                        // Para visualização, se lastActive < joinedAt, assumimos churn imediato
+                        let churnDate = parseDateSafe(user.lastActive);
+                        if (churnDate < joinDate) churnDate = joinDate;
+
+                        if (churnDate <= pointDate) {
+                            // Já tinha cancelado nesta data
+                            churnCount++;
+                        } else {
+                            // Ainda estava ativo nesta data (cancelou no futuro)
+                            activeCount++;
+                        }
+                    } else {
+                        // É ativo hoje, então era ativo no passado (desde que entrou)
+                        activeCount++;
+                    }
+                }
+            });
+
+            dataPoints.push({
+                name: bucket.label,
+                active: activeCount,
+                churn: churnCount,
+                fullDate: pointDate // debug
+            });
+        });
+
+        // Se não houver dados nenhuns (array vazio), gera um placeholder zerado para não quebrar o gráfico
+        if (dataPoints.length === 0) {
+            return [{ name: 'Sem dados', active: 0, churn: 0 }];
+        }
+
+        return dataPoints;
+
+    }, [evolutionPeriod, validUsers]);
+
+    // --- DADOS COHORT (MOCK VISUAL - Mantido pois requer log histórico complexo) ---
     const cohortData = useMemo(() => {
         if (totalUsers === 0) return [];
         const base = 100 - churnRate;
@@ -70,10 +162,7 @@ const Retention: React.FC = () => {
     }, [totalUsers, churnRate]);
 
     // Pequeno gráfico de sparkline para o KPI topo
-    const churnSparkData = [
-        { value: churnRate }, { value: churnRate + 0.2 }, { value: churnRate - 0.1 }, 
-        { value: churnRate + 0.5 }, { value: churnRate + 0.1 }, { value: churnRate }
-    ];
+    const churnSparkData = evolutionData.map(d => ({ value: d.churn }));
 
     const getCellColor = (rate: number) => {
         if (rate >= 95) return 'bg-neon-green/30 text-white';
@@ -104,7 +193,7 @@ const Retention: React.FC = () => {
                         </div>
                     </Card>
                     <Card className="flex flex-col justify-between h-full min-h-[120px]">
-                         <p className="text-xs text-gray-400 uppercase mb-2">Tendência de Churn (7d)</p>
+                         <p className="text-xs text-gray-400 uppercase mb-2">Tendência de Churn</p>
                          <div className="h-12 w-full flex items-end">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={churnSparkData}>
@@ -115,7 +204,7 @@ const Retention: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* --- GRÁFICO DE EVOLUÇÃO (NOVO) --- */}
+                {/* --- GRÁFICO DE EVOLUÇÃO (REAL) --- */}
                 <Card className="col-span-12 min-h-[450px]">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
@@ -168,11 +257,13 @@ const Retention: React.FC = () => {
                                     tickLine={false} 
                                     tick={{fill: '#6b7280', fontSize: 12}} 
                                     dy={10} 
+                                    interval={evolutionPeriod === 'month' ? 2 : 0}
                                 />
                                 <YAxis 
                                     axisLine={false} 
                                     tickLine={false} 
                                     tick={{fill: '#6b7280', fontSize: 12}} 
+                                    allowDecimals={false}
                                 />
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: '#0B0F1A', borderColor: '#374151', color: '#fff', borderRadius: '8px' }}
