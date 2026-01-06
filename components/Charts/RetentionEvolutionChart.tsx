@@ -5,20 +5,34 @@ import { useUserStore } from '../../store/useUserStore';
 import { COLORS } from '../../constants';
 import Card from '../ui/Card';
 
-const parseDateSafe = (dateStr: string): Date => {
-    if (!dateStr || dateStr === 'Nunca') return new Date(0);
+const parseDateSafe = (dateInput: any): Date => {
+    if (!dateInput) return new Date(0);
+    // Se já for objeto Date
+    if (dateInput instanceof Date) return dateInput;
+    // Se não for string, retorna data zero
+    if (typeof dateInput !== 'string') return new Date(0);
+    
+    const dateStr = dateInput;
+    if (dateStr === 'Nunca') return new Date(0);
     if (dateStr === 'Agora') return new Date();
     
+    // Tenta formato ISO
     const isoDate = new Date(dateStr);
-    if (!isNaN(isoDate.getTime()) && dateStr.includes('-')) return isoDate;
+    if (!isNaN(isoDate.getTime())) return isoDate;
 
+    // Tenta formato PT-BR (DD/MM/YYYY)
     if (dateStr.includes('/')) {
-        const [day, month, year] = dateStr.split('/').map(Number);
-        if (day && month && year) {
-            return new Date(year, month - 1, day);
+        const parts = dateStr.split(' '); // Separa data de hora se houver
+        const dateParts = parts[0].split('/');
+        if (dateParts.length === 3) {
+            const [day, month, year] = dateParts.map(Number);
+            if (day && month && year) {
+                return new Date(year, month - 1, day);
+            }
         }
     }
     
+    // Fallback: Retorna data atual para não quebrar o gráfico, mas idealmente seria tratado na origem
     return new Date();
 };
 
@@ -31,6 +45,7 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
     const { users, isLoading } = useUserStore();
     const [evolutionPeriod, setEvolutionPeriod] = useState<'week' | 'month' | 'year'>('month');
 
+    // Filtra apenas usuários reais (não teste)
     const validUsers = useMemo(() => users.filter(u => !u.isTest), [users]);
 
     const evolutionData = useMemo(() => {
@@ -40,6 +55,7 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
         let dateFormat: (d: Date) => string;
         let stepDate: (d: Date, i: number) => Date;
 
+        // Configuração dos intervalos baseada no período
         if (evolutionPeriod === 'week') {
             iterations = 7;
             dateFormat = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short' });
@@ -64,13 +80,14 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
             stepDate = (d, i) => {
                 const newDate = new Date(d);
                 newDate.setMonth(d.getMonth() - i);
-                newDate.setMonth(newDate.getMonth() + 1);
-                newDate.setDate(0);
+                newDate.setMonth(newDate.getMonth() + 1); // Vai para o próximo mês
+                newDate.setDate(0); // Volta para o último dia do mês atual da iteração
                 newDate.setHours(23, 59, 59, 999);
                 return newDate;
             };
         }
 
+        // Gera os buckets de tempo (do mais antigo para o mais novo)
         const buckets = [];
         for (let i = iterations - 1; i >= 0; i--) {
             buckets.push({
@@ -79,8 +96,10 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
             });
         }
         
+        // Aplica labels
         buckets.forEach(b => b.label = dateFormat(b.date));
 
+        // Popula os dados
         buckets.forEach(bucket => {
             const pointDate = bucket.date;
             let activeCount = 0;
@@ -89,17 +108,22 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
             validUsers.forEach(user => {
                 const joinDate = parseDateSafe(user.joinedAt);
                 
+                // Se o usuário entrou antes ou na data do bucket
                 if (joinDate <= pointDate) {
                     if (user.status === 'Cancelado') {
                         let churnDate = parseDateSafe(user.lastActive);
+                        // Correção: Se churn data for inválida ou anterior à entrada, assume data de entrada
                         if (churnDate < joinDate) churnDate = joinDate;
 
+                        // Se cancelou antes ou na data do bucket, conta como churn
                         if (churnDate <= pointDate) {
                             churnCount++;
                         } else {
+                            // Se ainda não tinha cancelado nesta data, era ativo
                             activeCount++;
                         }
                     } else {
+                        // Usuário não cancelado conta como ativo
                         activeCount++;
                     }
                 }
@@ -112,6 +136,7 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
             });
         });
 
+        // Fallback visual se não houver buckets (tecnicamente impossível pelo loop acima, mas seguro)
         if (dataPoints.length === 0) {
             return [{ name: 'Sem dados', active: 0, churn: 0 }];
         }
@@ -121,8 +146,8 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
     }, [evolutionPeriod, validUsers]);
 
     return (
-        <Card className={`min-h-[400px] flex flex-col ${className}`} onClick={onClick}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <Card className={`flex flex-col ${className}`} onClick={onClick}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
                     <h3 className="text-lg font-medium text-white flex items-center gap-2">
                         <Calendar size={18} className="text-neon-cyan" /> Evolução da Base vs Churn
@@ -152,7 +177,8 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
                 </div>
             </div>
 
-            <div className="flex-1 w-full min-h-[300px]">
+            {/* Container do Gráfico com Altura Fixa para evitar colapso do Recharts */}
+            <div className="w-full h-[350px]">
                 {isLoading ? (
                     <div className="h-full flex items-center justify-center">
                         <Loader2 className="animate-spin text-neon-cyan" size={32} />
