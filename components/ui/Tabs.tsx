@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { motion } from 'framer-motion';
 
 interface TabsContextType {
   activeTab: string;
@@ -62,7 +63,12 @@ export const TabsTrigger: React.FC<TabsTriggerProps> = ({ value, children, icon 
       {children}
       
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-cyan shadow-[0_-2px_10px_rgba(124,252,243,0.5)]" />
+        <motion.div
+          layoutId="activeTabIndicator"
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-cyan shadow-[0_-2px_10px_rgba(124,252,243,0.5)]"
+          initial={false}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
       )}
     </button>
   );
@@ -80,8 +86,13 @@ export const TabsContent: React.FC<TabsContentProps> = ({ value, children }) => 
   if (context.activeTab !== value) return null;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      // 'exit' prop REMOVED to prevent freezing bug
+      transition={{ duration: 0.3 }}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 };

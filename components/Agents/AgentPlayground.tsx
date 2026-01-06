@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins, AlignLeft } from 'lucide-react';
+import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins, Trash2 } from 'lucide-react';
 import { Agent } from '../../types';
 import { generateAgentChat } from '../../services/ai';
 import { useToastStore } from '../../store/useToastStore';
@@ -19,37 +19,36 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     
-    const [metrics, setMetrics] = useState<{latency: number, tokens: number, cost: number, charCount: number} | null>(null);
+    // Refs for auto-scroll
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Initialize System Prompt
+    // Load System Prompt
     useEffect(() => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
-    }, [agent.systemPrompt]);
+    }, [agent.id, agent.systemPrompt]);
 
-    // Simple Auto-scroll
+    // Scroll behavior
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+    }, [messages, isLoading]);
 
     const handleRun = async () => {
         if (!prompt.trim()) return;
 
         const currentPrompt = prompt;
-        const promptLength = currentPrompt.length;
         
-        // Optimistic UI Update
+        // 1. Add User Message immediately
         const newUserMsg = { role: 'user' as const, content: currentPrompt };
-        const historyForAI = [...messages]; 
-
+        const historyForAI = [...messages]; // Snapshot current history
+        
         setMessages(prev => [...prev, newUserMsg]);
-        setPrompt(''); 
+        setPrompt(''); // Clear input
         setIsLoading(true);
-        setMetrics(null);
 
         const startTime = Date.now();
 
         try {
+            // 2. Call AI Service
             const response = await generateAgentChat(
                 agent.model,
                 systemPrompt,
@@ -61,27 +60,20 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Calculate Metrics
+            // 3. Calculate Costs
             const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 };
             const inputCost = (response.usage.promptTokens || 0) / 1000000 * pricing.inputPrice;
             const outputCost = (response.usage.responseTokens || 0) / 1000000 * pricing.outputPrice;
             const totalCost = inputCost + outputCost;
 
-            const usageData = {
+            // 4. Update UI with Response
+            setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
+
+            // 5. Background Stats Update
+            recordUsage(agent.id, {
                 tokens: response.usage.totalTokens,
                 cost: totalCost,
                 latency: latency,
-                charCount: promptLength
-            };
-
-            setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
-            setMetrics(usageData);
-
-            // Async Background Logging (Non-blocking)
-            recordUsage(agent.id, {
-                tokens: usageData.tokens,
-                cost: usageData.cost,
-                latency: usageData.latency,
                 successful: true
             });
 
@@ -91,24 +83,23 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 timestamp: new Date().toLocaleTimeString(),
                 input: currentPrompt,
                 output: response.text,
-                tokens: usageData.tokens,
-                latency: usageData.latency,
-                cost: parseFloat(usageData.cost.toFixed(6)),
+                tokens: response.usage.totalTokens,
+                latency: latency,
+                cost: parseFloat(totalCost.toFixed(6)),
                 status: 'success',
                 model: agent.model
             });
 
         } catch (error: any) {
-            console.error("Playground Error:", error);
-            const errorMessage = error.message || "Erro desconhecido.";
+            console.error("Agent Error:", error);
+            const errorMessage = error.message || "Erro desconhecido na execução do agente.";
             
             addToast({
                 type: 'error',
-                title: 'Erro de Execução',
+                title: 'Falha na Execução',
                 message: errorMessage
             });
             
-            // Show error in chat so user knows what happened
             setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${errorMessage}` }]);
             
             addLog({
@@ -143,16 +134,16 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                         <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
                             {MODEL_REGISTRY[agent.model]?.label || agent.model} • Temp: {agent.temperature || 0.7}
                             <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold">
-                                LIVE API
+                                LIVE
                             </span>
                         </p>
                     </div>
                 </div>
                 <button 
                     onClick={() => setMessages([])}
-                    className="text-xs text-gray-500 hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors px-3 py-1.5 rounded hover:bg-white/5"
                 >
-                    Limpar Chat
+                    <Trash2 size={14} /> Limpar Chat
                 </button>
             </div>
 
@@ -160,22 +151,26 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 {/* Left Column: Configuration & Input */}
                 <div className="w-1/3 border-r border-white/5 flex flex-col bg-[#080a12]">
                     <div className="p-4 border-b border-white/5">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">System Prompt (Contexto)</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block flex items-center gap-2">
+                            <Cpu size={12} /> System Prompt (Contexto)
+                        </label>
                         <textarea 
                             value={systemPrompt}
                             onChange={(e) => setSystemPrompt(e.target.value)}
-                            className="w-full h-40 bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-300 focus:border-neon-cyan focus:outline-none font-mono resize-none"
-                            placeholder="Instruções do sistema..."
+                            className="w-full h-40 bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-300 focus:border-neon-cyan focus:outline-none font-mono resize-none leading-relaxed"
+                            placeholder="Defina como o agente deve se comportar..."
                         />
                     </div>
                     <div className="flex-1 p-4 flex flex-col relative">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Input do Usuário</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block flex items-center gap-2">
+                            <Zap size={12} /> Input do Usuário
+                        </label>
                         <div className="relative flex-1 mb-4">
                             <textarea 
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
-                                className="w-full h-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none pb-8" 
-                                placeholder="Digite seu prompt de teste aqui..."
+                                className="w-full h-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none pb-8 placeholder-gray-600" 
+                                placeholder="Digite sua mensagem para testar o agente..."
                                 onKeyDown={(e) => {
                                     if(e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -183,8 +178,8 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                                     }
                                 }}
                             />
-                            <div className="absolute bottom-2 right-3 text-[10px] text-gray-500 font-mono pointer-events-none bg-black/50 px-1 rounded">
-                                {prompt.length} caracteres
+                            <div className="absolute bottom-2 right-3 text-[10px] text-gray-600 font-mono pointer-events-none">
+                                {prompt.length} chars
                             </div>
                         </div>
                         
@@ -198,51 +193,42 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                             `}
                         >
                             {isLoading ? <RefreshCw size={18} className="animate-spin" /> : <Play size={18} fill="currentColor" />}
-                            {isLoading ? 'Gerando...' : 'Executar'}
+                            {isLoading ? 'Processando...' : 'Executar'}
                         </button>
                     </div>
                 </div>
 
-                {/* Right Column: Output & Metrics */}
+                {/* Right Column: Chat Output */}
                 <div className="w-2/3 flex flex-col bg-[#0B0F1A] relative">
-                    {metrics && (
-                        <div className="absolute top-4 right-4 flex gap-3 z-10 animate-in slide-in-from-top-2 fade-in">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-xs text-white font-mono backdrop-blur-md shadow-lg">
-                                <AlignLeft size={12} className="text-gray-300" /> 
-                                <span className="font-bold text-neon-cyan">{metrics.charCount}</span> chars
-                            </div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-purple/10 border border-neon-purple/30 rounded-lg text-xs text-neon-purple font-mono backdrop-blur-md">
-                                <Cpu size={12} /> {metrics.tokens} toks
-                            </div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-blue/10 border border-neon-blue/30 rounded-lg text-xs text-neon-blue font-mono backdrop-blur-md">
-                                <Zap size={12} /> {metrics.latency}ms
-                            </div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-neon-green/10 border border-neon-green/30 rounded-lg text-xs text-neon-green font-mono backdrop-blur-md">
-                                <Coins size={12} /> ${metrics.cost.toFixed(6)}
-                            </div>
-                        </div>
-                    )}
-
                     <div className="flex-1 p-6 overflow-y-auto space-y-6">
                         {messages.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-gray-600">
-                                <Send size={48} className="mb-4 opacity-20" />
-                                <p>O chat está vazio. Execute um prompt para começar.</p>
+                                <div className="p-4 rounded-full bg-white/5 mb-4">
+                                    <Send size={32} className="opacity-50" />
+                                </div>
+                                <p className="font-medium">O chat está vazio.</p>
+                                <p className="text-sm opacity-60">Envie um prompt para iniciar a simulação.</p>
                             </div>
                         ) : (
                             messages.map((msg, idx) => (
                                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`
-                                        max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed
+                                        max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed shadow-lg
                                         ${msg.role === 'user' 
-                                            ? 'bg-white/10 text-white rounded-br-none' 
-                                            : 'bg-gradient-to-br from-neon-blue/10 to-neon-purple/5 border border-white/5 text-gray-200 rounded-bl-none shadow-lg'}
+                                            ? 'bg-white/10 text-white rounded-br-none border border-white/5' 
+                                            : 'bg-gradient-to-br from-neon-blue/10 to-neon-purple/5 border border-white/10 text-gray-200 rounded-bl-none'}
                                     `}>
+                                        {msg.role === 'assistant' && (
+                                            <div className="flex items-center gap-2 mb-2 text-[10px] text-neon-cyan uppercase tracking-wider font-bold opacity-70">
+                                                <Sparkles size={10} /> Resposta do Agente
+                                            </div>
+                                        )}
                                         <p className="whitespace-pre-wrap">{msg.content}</p>
                                     </div>
                                 </div>
                             ))
                         )}
+                        
                         {isLoading && (
                             <div className="flex justify-start">
                                 <div className="bg-white/5 rounded-2xl p-4 rounded-bl-none flex gap-2 items-center">
