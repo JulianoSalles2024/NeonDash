@@ -3,19 +3,27 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Carrega variáveis de ambiente do diretório atual
-  // O terceiro argumento '' garante que carregue variáveis sem prefixo VITE_
   const env = loadEnv(mode, process.cwd(), '');
+
+  // FALLBACK DE SEGURANÇA:
+  // Se o .env não for lido corretamente, usa a chave fornecida para garantir que o app funcione.
+  const apiKey = env.API_KEY || "AIzaSyBM8WvmcyFsn4o0xGDxPuXHjEs70vyf_4E";
+
+  console.log("---------------------------------------------------");
+  console.log("NEONDASH BUILD CONFIG:");
+  console.log("Mode:", mode);
+  console.log("API Key Detected:", apiKey ? "YES (Ends with ... " + apiKey.slice(-4) + ")" : "NO");
+  console.log("---------------------------------------------------");
 
   return {
     plugins: [react()],
     define: {
-      // Define a variável global process.env.API_KEY com o valor do arquivo .env
-      // O JSON.stringify é crucial para que o valor seja inserido como string no código final
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Injeta a chave diretamente no código compilado
+      'process.env.API_KEY': JSON.stringify(apiKey),
     },
     build: {
       outDir: 'dist',
-      sourcemap: false
+      sourcemap: true // Habilitado para melhor debug
     },
     server: {
       port: 3000,

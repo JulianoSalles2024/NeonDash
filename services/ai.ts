@@ -3,10 +3,13 @@ import { AgentChatResponse } from '../types';
 
 // Helper para obter a chave de forma segura
 const getApiKey = () => {
-  // Tenta obter via process.env (injetado pelo Vite)
+  // O Vite substitui 'process.env.API_KEY' pelo valor string definido no vite.config.ts
   const key = process.env.API_KEY;
-  if (!key) {
-    console.error("CRITICAL: API_KEY is missing. Check your .env file and restart the server.");
+  
+  // Fallback visual/debug caso a injeção falhe completamente (raro com a config atualizada)
+  if (!key || key.includes("undefined")) {
+    console.error("CRITICAL ERROR: API Key is missing or undefined in the browser bundle.");
+    console.error("Please restart the Vite server using 'npm run dev' to reload config.");
     return null;
   }
   return key;
@@ -16,7 +19,7 @@ const getApiKey = () => {
 const getGeminiModelName = (uiModel: string) => {
     const lowerModel = (uiModel || '').toLowerCase();
     
-    // 1. Tarefas Complexas / Raciocínio -> Gemini 3 Pro (Equivalente GPT-4/Claude Opus)
+    // 1. Tarefas Complexas / Raciocínio -> Gemini 3 Pro
     if (
         lowerModel.includes('gpt-4') || 
         lowerModel.includes('claude-3-opus') || 
@@ -26,7 +29,7 @@ const getGeminiModelName = (uiModel: string) => {
     ) {
         return 'gemini-3-pro-preview';
     } 
-    // 2. Tarefas Rápidas / Simples -> Gemini 3 Flash (Equivalente GPT-3.5/Haiku)
+    // 2. Tarefas Rápidas / Simples -> Gemini 3 Flash
     else if (
         lowerModel.includes('gpt-3.5') || 
         lowerModel.includes('haiku') || 
@@ -36,14 +39,13 @@ const getGeminiModelName = (uiModel: string) => {
         return 'gemini-3-flash-preview';
     }
     
-    // Fallback padrão
     return 'gemini-3-flash-preview';
 };
 
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return "⚠️ Configuração necessária: Adicione API_KEY ao .env";
+    if (!apiKey) return "⚠️ API Key não detectada. Reinicie o servidor local.";
 
     const ai = new GoogleGenAI({ apiKey });
     
@@ -60,7 +62,7 @@ export const generateDashboardInsight = async (metricsSummary: string): Promise<
 
   } catch (error) {
     console.warn("AI Insight Error:", error);
-    return "⚠️ IA indisponível. Verifique o console.";
+    return "⚠️ IA indisponível. Verifique conexão.";
   }
 };
 
@@ -74,23 +76,19 @@ export const generateAgentChat = async (
   
   const apiKey = getApiKey();
   if (!apiKey) {
-      throw new Error("Chave de API não configurada. Verifique o arquivo .env");
+      throw new Error("Chave de API não configurada. Verifique o console.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
-
-  // Mapeia o modelo selecionado na UI para um modelo Gemini compatível
   const modelName = getGeminiModelName(uiModelName);
 
-  console.log(`[Agent] Executing with model: ${modelName} (mapped from ${uiModelName})`);
+  console.log(`[Agent] Sending request to ${modelName}...`);
 
-  // Converte histórico para o formato do Google SDK
   const contents = history.map((msg) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }]
   }));
 
-  // Adiciona a nova mensagem
   contents.push({
       role: 'user',
       parts: [{ text: newMessage }]
@@ -107,7 +105,7 @@ export const generateAgentChat = async (
       });
 
       return {
-        text: response.text || "Sem resposta do modelo.",
+        text: response.text || "O modelo não retornou texto.",
         usage: {
           totalTokens: response.usageMetadata?.totalTokenCount || 0,
           promptTokens: response.usageMetadata?.promptTokenCount || 0,
@@ -116,6 +114,13 @@ export const generateAgentChat = async (
       };
   } catch (error: any) {
       console.error("Agent Execution Error Details:", error);
-      throw new Error(`Erro na IA (${modelName}): ${error.message || 'Falha desconhecida'}`);
+      
+      // Tratamento de erros comuns
+      let errorMessage = error.message || 'Falha desconhecida';
+      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida ou expirada.';
+      if (errorMessage.includes('429')) errorMessage = 'Limite de requisições excedido.';
+      if (errorMessage.includes('not found')) errorMessage = `Modelo ${modelName} não encontrado.`;
+
+      throw new Error(`Erro na IA: ${errorMessage}`);
   }
 };
