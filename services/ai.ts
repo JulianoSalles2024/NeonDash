@@ -6,7 +6,6 @@ const getApiKey = () => {
   // O Vite substitui 'process.env.API_KEY' pelo valor string definido no vite.config.ts
   const key = process.env.API_KEY;
   
-  // Fallback visual/debug caso a injeção falhe completamente (raro com a config atualizada)
   if (!key || key.includes("undefined")) {
     console.error("CRITICAL ERROR: API Key is missing or undefined in the browser bundle.");
     console.error("Please restart the Vite server using 'npm run dev' to reload config.");
@@ -78,6 +77,9 @@ export const generateAgentChat = async (
   if (!apiKey) {
       throw new Error("Chave de API não configurada. Verifique o console.");
   }
+
+  // Debug log to confirm key update
+  console.log(`[Agent] Using Key ending in: ...${apiKey.slice(-4)}`);
 
   const ai = new GoogleGenAI({ apiKey });
   const modelName = getGeminiModelName(uiModelName);

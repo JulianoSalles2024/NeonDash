@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
 
   // FALLBACK DE SEGURANÇA:
   // Se o .env não for lido corretamente, usa a chave fornecida para garantir que o app funcione.
-  const apiKey = env.API_KEY || "AIzaSyBM8WvmcyFsn4o0xGDxPuXHjEs70vyf_4E";
+  const apiKey = env.API_KEY || "AIzaSyCZw7K0My40AgnMQFHz-YBdKq3XlAcIjTs";
 
   console.log("---------------------------------------------------");
   console.log("NEONDASH BUILD CONFIG:");

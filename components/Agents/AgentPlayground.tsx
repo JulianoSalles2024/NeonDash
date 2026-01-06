@@ -26,7 +26,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
     }, [agent.id, agent.systemPrompt]);
 
-    // Auto-scroll
+    // Auto-scroll logic
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isLoading]);
