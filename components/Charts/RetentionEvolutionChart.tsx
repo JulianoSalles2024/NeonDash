@@ -147,38 +147,38 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
 
     return (
         <Card className={`flex flex-col ${className}`} onClick={onClick}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                 <div>
-                    <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                        <Calendar size={18} className="text-neon-cyan" /> Evolução da Base vs Churn
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Calendar size={16} className="text-neon-cyan" /> Evolução da Base vs Churn
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1">Comparativo de usuários ativos e cancelamentos ao longo do tempo.</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Comparativo ao longo do tempo.</p>
                 </div>
                 
-                <div className="flex bg-white/5 rounded-lg p-1 border border-white/10" onClick={(e) => e.stopPropagation()}>
+                <div className="flex bg-white/5 rounded-lg p-1 border border-white/10 scale-90 origin-right" onClick={(e) => e.stopPropagation()}>
                     <button 
                         onClick={() => setEvolutionPeriod('week')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'week' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'week' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
                     >
                         Semana
                     </button>
                     <button 
                         onClick={() => setEvolutionPeriod('month')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'month' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'month' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
                     >
                         Mês
                     </button>
                     <button 
                         onClick={() => setEvolutionPeriod('year')}
-                        className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'year' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${evolutionPeriod === 'year' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-500 hover:text-gray-300'}`}
                     >
                         Ano
                     </button>
                 </div>
             </div>
 
-            {/* Container do Gráfico com Altura Fixa para evitar colapso do Recharts */}
-            <div className="w-full h-[350px]">
+            {/* Container do Gráfico com Altura Fixa REDUZIDA para evitar rolagem */}
+            <div className="w-full h-[200px]">
                 {isLoading ? (
                     <div className="h-full flex items-center justify-center">
                         <Loader2 className="animate-spin text-neon-cyan" size={32} />
@@ -201,14 +201,14 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
                                 dataKey="name" 
                                 axisLine={false} 
                                 tickLine={false} 
-                                tick={{fill: '#6b7280', fontSize: 12}} 
+                                tick={{fill: '#6b7280', fontSize: 10}} 
                                 dy={10} 
                                 interval={evolutionPeriod === 'month' ? 2 : 0}
                             />
                             <YAxis 
                                 axisLine={false} 
                                 tickLine={false} 
-                                tick={{fill: '#6b7280', fontSize: 12}} 
+                                tick={{fill: '#6b7280', fontSize: 10}} 
                                 allowDecimals={false}
                             />
                             <Tooltip 
@@ -223,9 +223,9 @@ const RetentionEvolutionChart: React.FC<RetentionEvolutionChartProps> = ({ onCli
                             />
                             <Legend 
                                 verticalAlign="top" 
-                                height={36} 
+                                height={24} 
                                 iconType="circle"
-                                formatter={(value) => <span className="text-xs text-gray-400 ml-1">{value === 'active' ? 'Ativos' : 'Churn'}</span>}
+                                formatter={(value) => <span className="text-[10px] text-gray-400 ml-1">{value === 'active' ? 'Ativos' : 'Churn'}</span>}
                             />
                             <Area 
                                 type="monotone" 
