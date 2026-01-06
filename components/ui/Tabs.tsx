@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from 'react';
 import { motion } from 'framer-motion';
 
@@ -90,7 +89,7 @@ export const TabsContent: React.FC<TabsContentProps> = ({ value, children }) => 
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      // REMOVED 'exit' prop here to fix the freezing bug when navigating back
       transition={{ duration: 0.3 }}
     >
       {children}
