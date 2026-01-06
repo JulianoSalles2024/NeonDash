@@ -14,6 +14,7 @@ import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
+import RetentionEvolutionChart from '../components/Charts/RetentionEvolutionChart';
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'focus'>('overview');
@@ -245,11 +246,12 @@ const Dashboard: React.FC = () => {
                 </div>
             </Card>
 
-            <div className="col-span-1 md:col-span-2 flex items-center justify-center p-6 border border-white/5 rounded-xl bg-white/[0.02]">
-                <div className="text-center">
-                    <CheckCircle size={32} className="text-gray-600 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">Mais widgets analíticos em breve...</p>
-                </div>
+            {/* Retention Chart on Dashboard */}
+            <div className="col-span-1 md:col-span-2">
+                <RetentionEvolutionChart 
+                    onClick={() => navigate('/retention')}
+                    className="cursor-pointer hover:border-white/20 transition-all border border-white/5"
+                />
             </div>
 
         </motion.div>
@@ -263,7 +265,8 @@ const Dashboard: React.FC = () => {
             transition={{ duration: 0.2 }}
             className="flex flex-col gap-8"
         >
-            {/* 1. TOP SECTION: THE STREAM (Expanded) */}
+            {/* ... Focus Content ... */}
+            {/* (Keeping existing Focus Mode content mostly same for brevity, assuming no changes requested there) */}
             <div className="w-full">
                 <div className="flex justify-between items-center mb-4 px-2">
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -299,7 +302,6 @@ const Dashboard: React.FC = () => {
                     )}
                     <AnimatePresence initial={false}>
                         {events.map((event) => {
-                            // Helper inside map
                             const isCritical = event.level === 'critical';
                             const isWarning = event.level === 'warning';
                             const isSuccess = event.level === 'success';
@@ -368,7 +370,6 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* 2. BOTTOM SECTION: KPIS MOVED HERE (REAL DATA LINKED) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="border-red-500/30 bg-red-500/5 hover:border-red-500/50 transition-colors">
                         <div className="flex items-center gap-3 mb-2">
