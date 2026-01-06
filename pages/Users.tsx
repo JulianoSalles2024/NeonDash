@@ -139,7 +139,8 @@ const UsersPage: React.FC = () => {
   );
 
   // Calculate ARPU (Average Revenue Per User) - "Média Planos"
-  const validRevenueUsers = users.filter(u => !u.isTest);
+  // Regra: Apenas usuários reais (não teste) e que NÃO estão cancelados (Ativo, Risco, Fantasma, Novo)
+  const validRevenueUsers = users.filter(u => !u.isTest && u.status !== UserStatus.CHURNED);
   const totalMRR = validRevenueUsers.reduce((acc, u) => acc + u.mrr, 0);
   const arpu = validRevenueUsers.length > 0 ? totalMRR / validRevenueUsers.length : 0;
 

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Carrega variáveis de ambiente do diretório atual
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, (process as any).cwd(), '');
 
   // FALLBACK DE SEGURANÇA:
   // Se o .env não for lido corretamente, usa a chave fornecida para garantir que o app funcione.
