@@ -3,17 +3,10 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { User, UserStatus, SuccessJourney } from '../types';
 import { useUserStore } from '../store/useUserStore';
+import { useUsersViewStore, SortKey, SortConfig } from '../store/useUsersViewStore';
 import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database, Flag, Target, Layout, CheckSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
-
-type SortKey = keyof User | 'mrr' | 'healthScore' | 'joinedAt';
-type SortDirection = 'asc' | 'desc';
-
-interface SortConfig {
-  key: SortKey;
-  direction: SortDirection;
-}
 
 const ITEMS_PER_PAGE = 15;
 
@@ -95,18 +88,23 @@ const UsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { addToast } = useToastStore();
   
-  // Connect to Global Store
+  // Connect to Global Stores
   const { users, addUser, updateUser, deleteUser, fetchUsers } = useUserStore();
+  const { 
+      searchTerm, 
+      sortConfig, 
+      currentPage, 
+      setSearchTerm, 
+      setSortConfig, 
+      setCurrentPage 
+  } = useUsersViewStore();
 
-  // --- UI STATE ---
+  // --- UI STATE (Modals/Forms Local) ---
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false); // Novo Modal
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false); 
   
   const [isSaving, setIsSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'healthScore', direction: 'desc' });
-  const [currentPage, setCurrentPage] = useState(1);
   
   // Selection State
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -146,11 +144,6 @@ const UsersPage: React.FC = () => {
   const arpu = validRevenueUsers.length > 0 ? totalMRR / validRevenueUsers.length : 0;
 
   // --- LOGIC: Filtering & Sorting ---
-
-  // Reset page to 1 when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
 
   const filteredUsers = useMemo(() => {
     let result = [...users];
@@ -193,15 +186,23 @@ const UsersPage: React.FC = () => {
   // --- LOGIC: Pagination ---
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  
+  // Ensure we don't show an empty page if filtering reduced results
+  useEffect(() => {
+      if (currentPage > totalPages && totalPages > 0) {
+          setCurrentPage(1);
+      }
+  }, [totalPages, currentPage, setCurrentPage]);
+
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // --- HANDLERS ---
 
   const handleSort = (key: SortKey) => {
-      setSortConfig(current => ({
+      setSortConfig({
           key,
-          direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-      }));
+          direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+      });
   };
 
   const handlePageChange = (newPage: number) => {
