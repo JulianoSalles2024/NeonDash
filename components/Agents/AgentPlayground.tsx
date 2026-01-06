@@ -28,9 +28,13 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
     }, [agent]);
 
-    // Auto-scroll to bottom
+    // Auto-scroll to bottom safely
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messages.length > 0) {
+            requestAnimationFrame(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            });
+        }
     }, [messages]);
 
     const handleRun = async () => {
