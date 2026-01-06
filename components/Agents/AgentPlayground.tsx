@@ -22,26 +22,23 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const [metrics, setMetrics] = useState<{latency: number, tokens: number, cost: number, charCount: number} | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Initialize/Reset
+    // Initialize System Prompt
     useEffect(() => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
     }, [agent.systemPrompt]);
 
-    // Auto-scroll to bottom
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
+    // Simple Auto-scroll
     useEffect(() => {
-        scrollToBottom();
-    }, [messages, isLoading]);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
     const handleRun = async () => {
-        if (!prompt.trim() || isLoading) return;
+        if (!prompt.trim()) return;
 
         const currentPrompt = prompt;
         const promptLength = currentPrompt.length;
         
+        // Optimistic UI Update
         const newUserMsg = { role: 'user' as const, content: currentPrompt };
         const historyForAI = [...messages]; 
 
@@ -64,8 +61,8 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
+            // Calculate Metrics
             const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 };
-            
             const inputCost = (response.usage.promptTokens || 0) / 1000000 * pricing.inputPrice;
             const outputCost = (response.usage.responseTokens || 0) / 1000000 * pricing.outputPrice;
             const totalCost = inputCost + outputCost;
@@ -80,6 +77,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
             setMetrics(usageData);
 
+            // Async Background Logging (Non-blocking)
             recordUsage(agent.id, {
                 tokens: usageData.tokens,
                 cost: usageData.cost,
@@ -102,13 +100,15 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
         } catch (error: any) {
             console.error("Playground Error:", error);
-            const errorMessage = error.message || "Erro desconhecido ao processar solicitação.";
+            const errorMessage = error.message || "Erro desconhecido.";
             
             addToast({
                 type: 'error',
                 title: 'Erro de Execução',
                 message: errorMessage
             });
+            
+            // Show error in chat so user knows what happened
             setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${errorMessage}` }]);
             
             addLog({
@@ -183,7 +183,6 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                                     }
                                 }}
                             />
-                            {/* Live Character Counter */}
                             <div className="absolute bottom-2 right-3 text-[10px] text-gray-500 font-mono pointer-events-none bg-black/50 px-1 rounded">
                                 {prompt.length} caracteres
                             </div>
@@ -206,8 +205,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
                 {/* Right Column: Output & Metrics */}
                 <div className="w-2/3 flex flex-col bg-[#0B0F1A] relative">
-                        {/* Metrics Overlay */}
-                        {metrics && (
+                    {metrics && (
                         <div className="absolute top-4 right-4 flex gap-3 z-10 animate-in slide-in-from-top-2 fade-in">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-xs text-white font-mono backdrop-blur-md shadow-lg">
                                 <AlignLeft size={12} className="text-gray-300" /> 
