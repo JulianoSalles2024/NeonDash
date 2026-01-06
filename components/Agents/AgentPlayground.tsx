@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins, Trash2 } from 'lucide-react';
+import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Trash2 } from 'lucide-react';
 import { Agent } from '../../types';
 import { generateAgentChat } from '../../services/ai';
 import { useToastStore } from '../../store/useToastStore';
@@ -19,15 +19,14 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Refs for auto-scroll
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Load System Prompt
+    // Initialize System Prompt
     useEffect(() => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
     }, [agent.id, agent.systemPrompt]);
 
-    // Scroll behavior
+    // Auto-scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isLoading]);
@@ -37,18 +36,17 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
         const currentPrompt = prompt;
         
-        // 1. Add User Message immediately
+        // Optimistic UI Update
         const newUserMsg = { role: 'user' as const, content: currentPrompt };
-        const historyForAI = [...messages]; // Snapshot current history
+        const historyForAI = [...messages]; 
         
         setMessages(prev => [...prev, newUserMsg]);
-        setPrompt(''); // Clear input
+        setPrompt(''); 
         setIsLoading(true);
 
         const startTime = Date.now();
 
         try {
-            // 2. Call AI Service
             const response = await generateAgentChat(
                 agent.model,
                 systemPrompt,
@@ -60,16 +58,15 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // 3. Calculate Costs
+            // Calculate Metrics
             const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 };
             const inputCost = (response.usage.promptTokens || 0) / 1000000 * pricing.inputPrice;
             const outputCost = (response.usage.responseTokens || 0) / 1000000 * pricing.outputPrice;
             const totalCost = inputCost + outputCost;
 
-            // 4. Update UI with Response
             setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
 
-            // 5. Background Stats Update
+            // Background Stats Update
             recordUsage(agent.id, {
                 tokens: response.usage.totalTokens,
                 cost: totalCost,
@@ -91,12 +88,12 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             });
 
         } catch (error: any) {
-            console.error("Agent Error:", error);
-            const errorMessage = error.message || "Erro desconhecido na execução do agente.";
+            console.error("Playground Error:", error);
+            const errorMessage = error.message || "Erro desconhecido.";
             
             addToast({
                 type: 'error',
-                title: 'Falha na Execução',
+                title: 'Erro de Execução',
                 message: errorMessage
             });
             
@@ -158,7 +155,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                             value={systemPrompt}
                             onChange={(e) => setSystemPrompt(e.target.value)}
                             className="w-full h-40 bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-gray-300 focus:border-neon-cyan focus:outline-none font-mono resize-none leading-relaxed"
-                            placeholder="Defina como o agente deve se comportar..."
+                            placeholder="Instruções do sistema..."
                         />
                     </div>
                     <div className="flex-1 p-4 flex flex-col relative">
@@ -193,42 +190,33 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                             `}
                         >
                             {isLoading ? <RefreshCw size={18} className="animate-spin" /> : <Play size={18} fill="currentColor" />}
-                            {isLoading ? 'Processando...' : 'Executar'}
+                            {isLoading ? 'Gerando...' : 'Executar'}
                         </button>
                     </div>
                 </div>
 
-                {/* Right Column: Chat Output */}
+                {/* Right Column: Output */}
                 <div className="w-2/3 flex flex-col bg-[#0B0F1A] relative">
                     <div className="flex-1 p-6 overflow-y-auto space-y-6">
                         {messages.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-gray-600">
-                                <div className="p-4 rounded-full bg-white/5 mb-4">
-                                    <Send size={32} className="opacity-50" />
-                                </div>
-                                <p className="font-medium">O chat está vazio.</p>
-                                <p className="text-sm opacity-60">Envie um prompt para iniciar a simulação.</p>
+                                <Send size={48} className="mb-4 opacity-20" />
+                                <p>O chat está vazio. Execute um prompt para começar.</p>
                             </div>
                         ) : (
                             messages.map((msg, idx) => (
                                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`
-                                        max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed shadow-lg
+                                        max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed
                                         ${msg.role === 'user' 
-                                            ? 'bg-white/10 text-white rounded-br-none border border-white/5' 
-                                            : 'bg-gradient-to-br from-neon-blue/10 to-neon-purple/5 border border-white/10 text-gray-200 rounded-bl-none'}
+                                            ? 'bg-white/10 text-white rounded-br-none' 
+                                            : 'bg-gradient-to-br from-neon-blue/10 to-neon-purple/5 border border-white/5 text-gray-200 rounded-bl-none shadow-lg'}
                                     `}>
-                                        {msg.role === 'assistant' && (
-                                            <div className="flex items-center gap-2 mb-2 text-[10px] text-neon-cyan uppercase tracking-wider font-bold opacity-70">
-                                                <Sparkles size={10} /> Resposta do Agente
-                                            </div>
-                                        )}
                                         <p className="whitespace-pre-wrap">{msg.content}</p>
                                     </div>
                                 </div>
                             ))
                         )}
-                        
                         {isLoading && (
                             <div className="flex justify-start">
                                 <div className="bg-white/5 rounded-2xl p-4 rounded-bl-none flex gap-2 items-center">
