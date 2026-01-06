@@ -1,21 +1,29 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { Agent, AgentStatus } from '../types';
+import { Agent, AgentStatus, AgentLog } from '../types';
 import { useEventStore } from './useEventStore';
+import { MOCK_AGENT_LOGS } from '../constants';
 
 interface AgentState {
   agents: Agent[];
+  logs: AgentLog[]; // Logs da sessão
   isLoading: boolean;
   
   fetchAgents: () => Promise<void>;
   addAgent: (agent: Agent) => Promise<void>;
   updateAgent: (id: string, data: Partial<Agent>) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
+  
+  // Novas ações de monitoramento
+  recordUsage: (agentId: string, usage: { tokens: number, cost: number, latency: number, successful: boolean }) => Promise<void>;
+  addLog: (log: AgentLog) => void;
+  
   resetAgents: () => void;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
   agents: [],
+  logs: [...MOCK_AGENT_LOGS], // Inicia com mock para não ficar vazio, novos entram no topo
   isLoading: false,
 
   fetchAgents: async () => {
@@ -36,11 +44,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             status: a.status as AgentStatus,
             systemPrompt: a.system_prompt,
             temperature: a.temperature,
-            totalTokens: a.total_tokens,
-            cost: a.cost,
-            successRate: 98.5, 
-            avgLatency: 800,
-            lastUsed: 'Hoje',
+            totalTokens: a.total_tokens || 0,
+            cost: a.cost || 0,
+            successRate: a.success_rate || 100, 
+            avgLatency: a.avg_latency || 0,
+            lastUsed: a.last_used ? new Date(a.last_used).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Nunca',
         }));
 
         set({ agents: formattedAgents });
@@ -96,9 +104,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         const currentAgent = state.agents.find(a => a.id === id);
 
         const dbChanges: any = { ...changes };
+        // Mapeamento de campos camelCase para snake_case do DB
         if (changes.systemPrompt !== undefined) dbChanges.system_prompt = changes.systemPrompt;
         if (changes.totalTokens !== undefined) dbChanges.total_tokens = changes.totalTokens;
         
+        // Remove campos que não existem na tabela ou são computados
         delete dbChanges.systemPrompt;
         delete dbChanges.totalTokens;
         delete dbChanges.lastUsed;
@@ -153,6 +163,52 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     } catch (error) {
         console.error('Error deleting agent:', error);
     }
+  },
+
+  // --- ACTIONS DE MONITORAMENTO REAL ---
+
+  recordUsage: async (agentId, { tokens, cost, latency, successful }) => {
+      try {
+          const state = get();
+          const agent = state.agents.find(a => a.id === agentId);
+          if (!agent) return;
+
+          // Cálculos acumulativos
+          const newTotalTokens = (agent.totalTokens || 0) + tokens;
+          const newTotalCost = (agent.cost || 0) + cost;
+          
+          // Média móvel simples para latência (peso 20% para novo valor para suavizar)
+          const currentLatency = agent.avgLatency || latency;
+          const newAvgLatency = Math.round((currentLatency * 0.8) + (latency * 0.2));
+
+          // Atualiza Store local imediatamente (Optimistic UI)
+          set((state) => ({
+              agents: state.agents.map(a => a.id === agentId ? {
+                  ...a,
+                  totalTokens: newTotalTokens,
+                  cost: newTotalCost,
+                  avgLatency: newAvgLatency,
+                  lastUsed: 'Agora'
+              } : a)
+          }));
+
+          // Atualiza DB
+          await supabase.from('agents').update({
+              total_tokens: newTotalTokens,
+              cost: newTotalCost,
+              avg_latency: newAvgLatency,
+              last_used: new Date().toISOString()
+          }).eq('id', agentId);
+
+      } catch (error) {
+          console.error("Failed to record usage metrics:", error);
+      }
+  },
+
+  addLog: (log) => {
+      set((state) => ({
+          logs: [log, ...state.logs].slice(0, 100) // Mantém últimos 100 logs
+      }));
   },
 
   resetAgents: async () => {

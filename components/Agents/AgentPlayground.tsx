@@ -3,6 +3,7 @@ import { Play, RefreshCw, Send, Sparkles, Cpu, Zap, Coins, AlignLeft } from 'luc
 import { Agent } from '../../types';
 import { generateAgentChat } from '../../services/ai';
 import { useToastStore } from '../../store/useToastStore';
+import { useAgentStore } from '../../store/useAgentStore';
 import { MODEL_REGISTRY } from '../../constants';
 
 interface AgentPlaygroundProps {
@@ -11,6 +12,8 @@ interface AgentPlaygroundProps {
 
 const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const { addToast } = useToastStore();
+    const { recordUsage, addLog } = useAgentStore(); // Hook para salvar dados reais
+    
     const [prompt, setPrompt] = useState('');
     const [systemPrompt, setSystemPrompt] = useState('');
     const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
@@ -51,16 +54,15 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 agent.model,
                 systemPrompt,
                 agent.temperature || 0.7,
-                messages, // Pass history excluding new message (service handles structure)
+                messages, // Pass history excluding new message
                 currentPrompt
             );
 
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Calculate estimated cost automatically based on Registry
-            // 1M Tokens divisor
-            const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 }; // Default fallback
+            // Calculate estimated cost
+            const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 };
             
             const inputCost = (response.usage.promptTokens / 1000000) * pricing.inputPrice;
             const outputCost = (response.usage.responseTokens / 1000000) * pricing.outputPrice;
@@ -68,14 +70,39 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
             setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
             
-            setMetrics({
-                latency,
+            // --- ATUALIZAÇÃO DOS DADOS REAIS ---
+            const usageData = {
                 tokens: response.usage.totalTokens,
                 cost: totalCost,
-                charCount: promptLength // Store character count
+                latency: latency,
+                charCount: promptLength
+            };
+
+            setMetrics(usageData);
+
+            // 1. Grava Métricas no Agente (Store + DB)
+            await recordUsage(agent.id, {
+                tokens: usageData.tokens,
+                cost: usageData.cost,
+                latency: usageData.latency,
+                successful: true
             });
 
-        } catch (error) {
+            // 2. Adiciona Log na Tabela
+            addLog({
+                id: Date.now().toString(),
+                agentId: agent.id,
+                timestamp: new Date().toLocaleTimeString(),
+                input: currentPrompt,
+                output: response.text,
+                tokens: usageData.tokens,
+                latency: usageData.latency,
+                cost: parseFloat(usageData.cost.toFixed(6)),
+                status: 'success',
+                model: agent.model
+            });
+
+        } catch (error: any) {
             console.error(error);
             addToast({
                 type: 'error',
@@ -83,6 +110,21 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 message: 'Falha ao obter resposta da IA. Verifique sua conexão ou API Key.'
             });
             setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ Erro: Não foi possível processar sua solicitação." }]);
+            
+            // Registra log de erro
+            addLog({
+                id: Date.now().toString(),
+                agentId: agent.id,
+                timestamp: new Date().toLocaleTimeString(),
+                input: currentPrompt,
+                output: error.message || "Erro desconhecido",
+                tokens: 0,
+                latency: 0,
+                cost: 0,
+                status: 'error',
+                model: agent.model
+            });
+
         } finally {
             setIsLoading(false);
         }
@@ -133,7 +175,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                             <textarea 
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
-                                className="w-full h-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none pb-8" // Padding bottom for counter
+                                className="w-full h-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-neon-cyan focus:outline-none resize-none pb-8" 
                                 placeholder="Digite seu prompt de teste aqui..."
                                 onKeyDown={(e) => {
                                     if(e.key === 'Enter' && !e.shiftKey) {
@@ -142,7 +184,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                                     }
                                 }}
                             />
-                            {/* Live Character Counter inside Textarea area */}
+                            {/* Live Character Counter */}
                             <div className="absolute bottom-2 right-3 text-[10px] text-gray-500 font-mono pointer-events-none bg-black/50 px-1 rounded">
                                 {prompt.length} caracteres
                             </div>
@@ -165,7 +207,7 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
 
                 {/* Right Column: Output & Metrics */}
                 <div className="w-2/3 flex flex-col bg-[#0B0F1A] relative">
-                        {/* Metrics Overlay - Now includes Character Count */}
+                        {/* Metrics Overlay */}
                         {metrics && (
                         <div className="absolute top-4 right-4 flex gap-3 z-10 animate-in slide-in-from-top-2 fade-in">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-xs text-white font-mono backdrop-blur-md shadow-lg">

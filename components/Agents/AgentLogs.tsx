@@ -1,5 +1,5 @@
 import React from 'react';
-import { MOCK_AGENT_LOGS } from '../../constants';
+import { useAgentStore } from '../../store/useAgentStore';
 import { AgentLog } from '../../types';
 import { CheckCircle, AlertTriangle, Clock, Code, DollarSign, Database } from 'lucide-react';
 
@@ -13,6 +13,8 @@ const StatusIcon = ({ status }: { status: string }) => {
 };
 
 const AgentLogs: React.FC = () => {
+    const { logs } = useAgentStore(); // Agora consome os logs do estado global
+
     return (
         <div className="w-full overflow-hidden rounded-xl border border-white/5 bg-white/[0.02]">
             <table className="w-full text-left border-collapse">
@@ -25,30 +27,38 @@ const AgentLogs: React.FC = () => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                    {MOCK_AGENT_LOGS.map((log: AgentLog) => (
-                        <tr key={log.id} className="hover:bg-white/[0.04] transition-colors group cursor-pointer">
-                            <td className="p-4 align-top">
-                                <div className="flex items-center gap-3">
-                                    <StatusIcon status={log.status} />
-                                    <span className="text-sm font-mono text-gray-300">{log.timestamp}</span>
-                                </div>
-                                <div className="mt-2 text-xs text-gray-500 font-mono ml-6">{log.id}</div>
-                            </td>
-                            <td className="p-4 align-top">
-                                <p className="text-sm text-gray-300 line-clamp-2 group-hover:text-white transition-colors">{log.input}</p>
-                            </td>
-                            <td className="p-4 align-top">
-                                <p className="text-sm text-gray-400 line-clamp-2 font-mono text-xs">{log.output}</p>
-                            </td>
-                            <td className="p-4 align-top text-right">
-                                <div className="flex flex-col gap-1 items-end">
-                                    <span className="text-xs text-gray-400 flex items-center gap-1"><Database size={10} /> {log.tokens} toks</span>
-                                    <span className={`text-xs flex items-center gap-1 ${log.latency > 1000 ? 'text-yellow-500' : 'text-gray-400'}`}><Clock size={10} /> {log.latency}ms</span>
-                                    <span className="text-xs text-neon-green flex items-center gap-1"><DollarSign size={10} /> ${log.cost}</span>
-                                </div>
+                    {logs.length === 0 ? (
+                        <tr>
+                            <td colSpan={4} className="p-8 text-center text-gray-500 text-sm">
+                                Nenhum log registrado nesta sessão.
                             </td>
                         </tr>
-                    ))}
+                    ) : (
+                        logs.map((log: AgentLog) => (
+                            <tr key={log.id} className="hover:bg-white/[0.04] transition-colors group cursor-pointer">
+                                <td className="p-4 align-top">
+                                    <div className="flex items-center gap-3">
+                                        <StatusIcon status={log.status} />
+                                        <span className="text-sm font-mono text-gray-300">{log.timestamp}</span>
+                                    </div>
+                                    <div className="mt-2 text-xs text-gray-500 font-mono ml-6 line-clamp-1">{log.id.slice(-8)}</div>
+                                </td>
+                                <td className="p-4 align-top">
+                                    <p className="text-sm text-gray-300 line-clamp-2 group-hover:text-white transition-colors">{log.input}</p>
+                                </td>
+                                <td className="p-4 align-top">
+                                    <p className="text-sm text-gray-400 line-clamp-2 font-mono text-xs">{log.output}</p>
+                                </td>
+                                <td className="p-4 align-top text-right">
+                                    <div className="flex flex-col gap-1 items-end">
+                                        <span className="text-xs text-gray-400 flex items-center gap-1"><Database size={10} /> {log.tokens} toks</span>
+                                        <span className={`text-xs flex items-center gap-1 ${log.latency > 2000 ? 'text-yellow-500' : 'text-gray-400'}`}><Clock size={10} /> {log.latency}ms</span>
+                                        <span className="text-xs text-neon-green flex items-center gap-1"><DollarSign size={10} /> ${log.cost.toFixed(6)}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))
+                    )}
                 </tbody>
             </table>
         </div>
