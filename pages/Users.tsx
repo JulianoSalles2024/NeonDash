@@ -395,17 +395,6 @@ const UsersPage: React.FC = () => {
         : <ArrowDown size={12} className="text-neon-cyan ml-1" />;
   };
 
-  const getStatusDotColor = (status: UserStatus) => {
-    switch (status) {
-      case UserStatus.ACTIVE: return 'bg-neon-green shadow-[0_0_8px_#34FFB0]';
-      case UserStatus.RISK: return 'bg-red-500 shadow-[0_0_8px_#ef4444]';
-      case UserStatus.CHURNED: return 'bg-gray-500';
-      case UserStatus.GHOST: return 'bg-neon-purple shadow-[0_0_8px_#9B5CFF]';
-      case UserStatus.NEW: return 'bg-neon-blue shadow-[0_0_8px_#4EE1FF]';
-      default: return 'bg-gray-400';
-    }
-  };
-
   // Helper para mostrar data amigável na tabela
   const formatLastActive = (dateStr: string) => {
       if (!dateStr || dateStr === 'Nunca') return 'Nunca';
@@ -555,10 +544,14 @@ const UsersPage: React.FC = () => {
                             >
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="relative flex h-3 w-3 shrink-0 ml-1">
-                                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${getStatusDotColor(user.status).split(' ')[0]}`}></span>
-                                            <span className={`relative inline-flex rounded-full h-3 w-3 ${getStatusDotColor(user.status)}`}></span>
-                                        </div>
+                                        
+                                        {/* INDICADOR PISCANTE SOMENTE SE STATUS === RISCO */}
+                                        {user.status === UserStatus.RISK && (
+                                            <div className="relative flex h-3 w-3 shrink-0 ml-1" title="Atenção Necessária">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_8px_#ef4444]"></span>
+                                            </div>
+                                        )}
                                         
                                         <div>
                                             <div className="flex flex-wrap items-center gap-2">
