@@ -1,15 +1,13 @@
-
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useEventStore } from './useEventStore';
-import { Role } from '../types';
 
 interface User {
   id: string;
   name: string;
   email: string;
   company?: string;
-  role: Role;
+  role: 'admin' | 'viewer';
 }
 
 interface AuthState {
@@ -108,16 +106,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
-        // Here we map metadata role to our specific Role type
-        // In a real app, you might validate this against the Role enum
-        const role = (data.user.user_metadata.role || 'admin') as Role;
-
-        const user: User = {
+        const user = {
             id: data.user.id,
             email: data.user.email!,
             name: data.user.user_metadata.name || 'Admin',
             company: data.user.user_metadata.company || 'Neon HQ',
-            role: role
+            role: data.user.user_metadata.role || 'admin' as const
         };
 
         set({
@@ -128,7 +122,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         useEventStore.getState().addEvent({
             level: 'info',
             title: 'Login Detectado',
-            description: `${user.name} (${user.role}) iniciou sessão.`,
+            description: `${user.name} iniciou sessão no painel.`,
             source: 'Auth Check'
         });
 

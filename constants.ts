@@ -1,26 +1,4 @@
-
-import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog, StreamEvent, Role, Permission } from './types';
-
-// --- RBAC CONFIGURATION ---
-export const ROLES_CONFIG: Record<Role, Permission[]> = {
-    admin: [
-        'view_dashboard', 'view_users', 'manage_users', 'view_agents', 'manage_agents', 
-        'view_billing', 'view_retention', 'view_health', 'manage_health', 'view_system'
-    ],
-    manager: [
-        'view_dashboard', 'view_users', 'manage_users', 'view_agents', 'manage_agents', 
-        'view_retention', 'view_health', 'manage_health'
-    ],
-    support: [
-        'view_dashboard', 'view_users', 'view_agents', 'view_health'
-    ],
-    finance: [
-        'view_dashboard', 'view_billing', 'view_retention'
-    ],
-    viewer: [
-        'view_dashboard'
-    ]
-};
+import { User, UserStatus, AIInsight, ChartDataPoint, UserEvent, Agent, AgentStatus, AgentLog, StreamEvent } from './types';
 
 // --- MODEL PRICING REGISTRY (USD per 1M tokens) ---
 // Prices are estimated/current as of late 2024/early 2025

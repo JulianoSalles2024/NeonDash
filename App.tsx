@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -7,7 +6,6 @@ import { useAuthStore } from './store/useAuthStore';
 import { useUserStore } from './store/useUserStore';
 import { useAgentStore } from './store/useAgentStore';
 import ProtectedLayout from './components/Layout/ProtectedLayout';
-import RBACRoute from './components/Layout/RBACRoute';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/Users';
 import AgentsPage from './pages/Agents';
@@ -23,7 +21,6 @@ import Register from './pages/Register';
 import { ToastContainer } from './components/ui/Toast';
 import CaptureModal from './components/Snapshots/CaptureModal';
 import SnapshotDrawer from './components/Snapshots/SnapshotDrawer';
-import { Role } from './types';
 
 const App: React.FC = () => {
   const location = useLocation();
@@ -43,7 +40,7 @@ const App: React.FC = () => {
                 email: session.user.email!,
                 name: session.user.user_metadata.name || 'Admin',
                 company: session.user.user_metadata.company || 'Neon HQ',
-                role: (session.user.user_metadata.role || 'admin') as Role
+                role: session.user.user_metadata.role || 'admin'
             });
             // Carregar dados iniciais em background
             fetchUsers();
@@ -66,11 +63,13 @@ const App: React.FC = () => {
           email: session.user.email!,
           name: session.user.user_metadata.name || 'Admin',
           company: session.user.user_metadata.company || 'Neon HQ',
-          role: (session.user.user_metadata.role || 'admin') as Role
+          role: session.user.user_metadata.role || 'admin'
         });
         setIsCheckingAuth(false);
       } else {
         setUser(null);
+        // Não setamos isCheckingAuth=false aqui imediatamente para evitar redirects
+        // durante o refresh, mas o initSession garante o estado inicial.
       }
     });
 
@@ -95,46 +94,16 @@ const App: React.FC = () => {
 
           {/* Protected Routes Wrapper */}
           <Route element={<ProtectedLayout />}>
-            
-            {/* Common Access */}
-            <Route path="/" element={
-                <RBACRoute permission="view_dashboard"><Dashboard /></RBACRoute>
-            } />
-            
-            {/* Users Module */}
-            <Route path="/users" element={
-                <RBACRoute permission="view_users"><UsersPage /></RBACRoute>
-            } />
-            <Route path="/users/:id" element={
-                <RBACRoute permission="view_users"><UserProfile /></RBACRoute>
-            } />
-            
-            {/* Agents Module */}
-            <Route path="/agents" element={
-                <RBACRoute permission="view_agents"><AgentsPage /></RBACRoute>
-            } />
-            <Route path="/agents/:id" element={
-                <RBACRoute permission="view_agents"><AgentProfile /></RBACRoute>
-            } />
-            
-            {/* Analytics */}
-            <Route path="/retention" element={
-                <RBACRoute permission="view_retention"><Retention /></RBACRoute>
-            } />
-            <Route path="/health" element={
-                <RBACRoute permission="view_health"><HealthEngine /></RBACRoute>
-            } />
-            
-            {/* Sensitive / Admin Areas */}
-            <Route path="/billing" element={
-                <RBACRoute permission="view_billing"><Billing /></RBACRoute>
-            } />
-            <Route path="/integrations" element={
-                <RBACRoute permission="view_system"><Integrations /></RBACRoute>
-            } />
-            <Route path="/settings" element={
-                <RBACRoute permission="view_system"><Settings /></RBACRoute>
-            } />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/health" element={<HealthEngine />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/users/:id" element={<UserProfile />} />
+            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/agents/:id" element={<AgentProfile />} />
+            <Route path="/retention" element={<Retention />} />
+            <Route path="/billing" element={<Billing />} />
+            <Route path="/integrations" element={<Integrations />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Fallback */}

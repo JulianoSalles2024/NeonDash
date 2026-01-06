@@ -14,20 +14,6 @@ export enum UserStatus {
     TRAINING = 'Treinando'
   }
   
-  export type Role = 'admin' | 'manager' | 'support' | 'finance' | 'viewer';
-
-  export type Permission = 
-    | 'view_dashboard'
-    | 'view_users'
-    | 'manage_users'
-    | 'view_agents'
-    | 'manage_agents'
-    | 'view_billing'
-    | 'view_retention'
-    | 'view_health'
-    | 'manage_health'
-    | 'view_system'; // Settings & Integrations
-
   export interface MetricTrend {
     value: number;
     label: string; // e.g., "vs last 24h"
