@@ -1,23 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { AgentChatResponse } from '../types';
 
-// Inicializa o cliente GenAI com a chave do ambiente
-// Nota: Em produção, idealmente isso ficaria no backend, mas para o Mission Control (Dashboard Admin),
-// o uso client-side é aceitável para garantir funcionalidade imediata do simulador.
-const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("API_KEY não encontrada. Verifique seu arquivo .env");
+// Helper para obter a chave de forma segura
+const getApiKey = () => {
+  // Tenta obter via process.env (injetado pelo Vite)
+  const key = process.env.API_KEY;
+  if (!key) {
+    console.error("CRITICAL: API_KEY is missing. Check your .env file and restart the server.");
     return null;
   }
-  return new GoogleGenAI({ apiKey });
+  return key;
 };
 
 // Helper para mapear modelos de UI (GPT/Claude) para modelos reais do Gemini
 const getGeminiModelName = (uiModel: string) => {
     const lowerModel = (uiModel || '').toLowerCase();
     
-    // 1. Complex/Reasoning Tasks -> Pro
+    // 1. Tarefas Complexas / Raciocínio -> Gemini 3 Pro (Equivalente GPT-4/Claude Opus)
     if (
         lowerModel.includes('gpt-4') || 
         lowerModel.includes('claude-3-opus') || 
@@ -27,7 +26,7 @@ const getGeminiModelName = (uiModel: string) => {
     ) {
         return 'gemini-3-pro-preview';
     } 
-    // 2. Fast/Simple Tasks -> Flash
+    // 2. Tarefas Rápidas / Simples -> Gemini 3 Flash (Equivalente GPT-3.5/Haiku)
     else if (
         lowerModel.includes('gpt-3.5') || 
         lowerModel.includes('haiku') || 
@@ -37,15 +36,17 @@ const getGeminiModelName = (uiModel: string) => {
         return 'gemini-3-flash-preview';
     }
     
-    // Default fallback
+    // Fallback padrão
     return 'gemini-3-flash-preview';
 };
 
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
-    const ai = getAIClient();
-    if (!ai) return "⚠️ API Key não configurada. Adicione API_KEY ao .env";
+    const apiKey = getApiKey();
+    if (!apiKey) return "⚠️ Configuração necessária: Adicione API_KEY ao .env";
 
+    const ai = new GoogleGenAI({ apiKey });
+    
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: metricsSummary,
@@ -59,7 +60,7 @@ export const generateDashboardInsight = async (metricsSummary: string): Promise<
 
   } catch (error) {
     console.warn("AI Insight Error:", error);
-    return "⚠️ Serviço de IA indisponível no momento.";
+    return "⚠️ IA indisponível. Verifique o console.";
   }
 };
 
@@ -71,16 +72,19 @@ export const generateAgentChat = async (
   newMessage: string
 ): Promise<AgentChatResponse> => {
   
-  const ai = getAIClient();
-  if (!ai) {
-      throw new Error("API Key não encontrada. Configure a variável de ambiente API_KEY.");
+  const apiKey = getApiKey();
+  if (!apiKey) {
+      throw new Error("Chave de API não configurada. Verifique o arquivo .env");
   }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   // Mapeia o modelo selecionado na UI para um modelo Gemini compatível
   const modelName = getGeminiModelName(uiModelName);
 
+  console.log(`[Agent] Executing with model: ${modelName} (mapped from ${uiModelName})`);
+
   // Converte histórico para o formato do Google SDK
-  // O SDK espera: { role: 'user' | 'model', parts: [{ text: string }] }
   const contents = history.map((msg) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }]
@@ -111,7 +115,7 @@ export const generateAgentChat = async (
         }
       };
   } catch (error: any) {
-      console.error("Agent Execution Error:", error);
-      throw new Error(error.message || "Falha na execução do agente.");
+      console.error("Agent Execution Error Details:", error);
+      throw new Error(`Erro na IA (${modelName}): ${error.message || 'Falha desconhecida'}`);
   }
 };
