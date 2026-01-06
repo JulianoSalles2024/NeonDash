@@ -108,13 +108,13 @@ const Dashboard: React.FC = () => {
   const isLoading = isUsersLoading || isMetricsLoading;
 
   return (
-    <PageTransition className="flex flex-col gap-4 p-6 max-w-[1600px] mx-auto pb-10">
-      <div className="flex justify-between items-end mb-1">
+    <PageTransition className="flex flex-col gap-6 p-8 max-w-[1600px] mx-auto pb-12">
+      <div className="flex justify-between items-end mb-2">
         <div>
-            <h1 className="text-2xl font-bold font-display text-white">Mission Control</h1>
-            <p className="text-gray-500 text-xs mt-0.5 flex items-center gap-2">
+            <h1 className="text-3xl font-bold font-display text-white">Mission Control</h1>
+            <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
                 Visão geral da plataforma
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/10 text-neon-cyan border border-neon-cyan/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-neon-cyan border border-neon-cyan/20">
                     {timeframe.toUpperCase()}
                 </span>
             </p>
@@ -124,13 +124,13 @@ const Dashboard: React.FC = () => {
         <div className="flex p-1 bg-white/5 rounded-lg border border-white/10 scale-90 origin-right">
             <button 
                 onClick={() => setActiveTab('overview')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'overview' ? 'bg-neon-blue/20 text-neon-blue shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'overview' ? 'bg-neon-blue/20 text-neon-blue shadow-sm' : 'text-gray-400 hover:text-white'}`}
             >
                 Visão Geral
             </button>
             <button 
                 onClick={() => setActiveTab('focus')}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === 'focus' ? 'bg-red-500/20 text-red-400 shadow-sm border border-red-500/10' : 'text-gray-400 hover:text-white'}`}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'focus' ? 'bg-red-500/20 text-red-400 shadow-sm border border-red-500/10' : 'text-gray-400 hover:text-white'}`}
             >
                 {activeTab === 'focus' && <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -141,8 +141,6 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* AIStrip removed here */}
-
       {activeTab === 'overview' ? (
         /* --- OVERVIEW TAB CONTENT --- */
         <motion.div 
@@ -151,11 +149,11 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-4"
+            className="grid grid-cols-1 md:grid-cols-4 gap-6"
         >
             
             {/* Main Metrics (Top Row) */}
-            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard 
                     title="Total de Usuários"
                     value={totalUsers}
@@ -164,7 +162,7 @@ const Dashboard: React.FC = () => {
                     chartData={data?.activeUsers.history || []}
                     chartColor={COLORS.blue}
                     isLoading={isLoading}
-                    icon={<div className="relative"><span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-neon-green"></span></span><UsersIcon size={18} /></div>}
+                    icon={<div className="relative"><span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-neon-green"></span></span><UsersIcon size={20} /></div>}
                     onClick={() => navigate('/users')}
                 />
                 <MetricCard 
@@ -175,7 +173,7 @@ const Dashboard: React.FC = () => {
                     chartData={data?.mrr.history || []}
                     chartColor={COLORS.purple}
                     isLoading={isLoading}
-                    icon={<DollarSign size={18} />}
+                    icon={<DollarSign size={20} />}
                     onClick={() => navigate('/billing')}
                 />
                 <MetricCard 
@@ -186,61 +184,62 @@ const Dashboard: React.FC = () => {
                     chartData={data?.churn.history || []}
                     chartColor={COLORS.pink} 
                     isLoading={isLoading}
-                    icon={<Activity size={18} />}
+                    icon={<Activity size={20} />}
                     onClick={() => navigate('/retention')}
                 />
             </div>
 
             {/* Health Score Right Side */}
-            <div className="col-span-1 flex justify-center w-full">
+            <div className="col-span-1 flex justify-center w-full h-full min-h-[300px]">
                 <HealthScore onClick={() => navigate('/health')} />
             </div>
 
-            {/* --- NEW SECTION: JOURNEY DISTRIBUTION (Aggregated Panel) --- */}
-            <Card className="col-span-1 md:col-span-2 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center">
-                <div className="flex justify-between items-center mb-4">
+            {/* --- BOTTOM ROW --- */}
+            {/* Journey Distribution */}
+            <Card className="col-span-1 md:col-span-2 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
+                <div className="flex justify-between items-center">
                     <div>
-                        <h3 className="text-base font-bold text-white flex items-center gap-2">
-                            <Target size={16} className="text-neon-cyan" /> Sucesso do Cliente
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Target size={20} className="text-neon-cyan" /> Sucesso do Cliente
                         </h3>
-                        <p className="text-[10px] text-gray-400">Distribuição da base por etapa.</p>
+                        <p className="text-xs text-gray-400 mt-1">Distribuição da base por etapa da Jornada de Valor.</p>
                     </div>
-                    <div className="p-1.5 bg-white/5 rounded-lg text-neon-cyan">
-                        <Flag size={16} />
+                    <div className="p-2 bg-white/5 rounded-lg text-neon-cyan">
+                        <Flag size={20} />
                     </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-5">
                     {/* Achieved */}
                     <div>
-                        <div className="flex justify-between text-xs mb-1">
+                        <div className="flex justify-between text-sm mb-2">
                             <span className="text-white font-medium">Resultado Atingido (Success)</span>
-                            <span className="text-neon-green font-bold">{journeyStats.achieved.count}</span>
+                            <span className="text-neon-green font-bold text-base">{journeyStats.achieved.count}</span>
                         </div>
-                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-green shadow-[0_0_10px_rgba(52,255,176,0.5)]" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
+                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-neon-green shadow-[0_0_10px_rgba(52,255,176,0.5)] transition-all duration-1000" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
                         </div>
                     </div>
 
                     {/* In Progress */}
                     <div>
-                        <div className="flex justify-between text-xs mb-1">
+                        <div className="flex justify-between text-sm mb-2">
                             <span className="text-gray-300">Em Progresso (Onboarding)</span>
-                            <span className="text-neon-blue font-bold">{journeyStats.inProgress.count}</span>
+                            <span className="text-neon-blue font-bold text-base">{journeyStats.inProgress.count}</span>
                         </div>
-                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-blue" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
+                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-neon-blue transition-all duration-1000" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
                         </div>
                     </div>
 
                     {/* Not Started */}
                     <div>
-                        <div className="flex justify-between text-xs mb-1">
+                        <div className="flex justify-between text-sm mb-2">
                             <span className="text-gray-500">Não Iniciado / Setup</span>
-                            <span className="text-gray-400 font-bold">{journeyStats.notStarted.count}</span>
+                            <span className="text-gray-400 font-bold text-base">{journeyStats.notStarted.count}</span>
                         </div>
-                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-gray-600" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
+                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-gray-600 transition-all duration-1000" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
                         </div>
                     </div>
                 </div>
@@ -265,7 +264,7 @@ const Dashboard: React.FC = () => {
             transition={{ duration: 0.2 }}
             className="flex flex-col gap-8"
         >
-            {/* ... Focus Content ... */}
+            {/* ... Focus Content (Same as before) ... */}
             <div className="w-full">
                 <div className="flex justify-between items-center mb-4 px-2">
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
