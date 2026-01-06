@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import { COLORS } from '../constants';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { Users, TrendingDown, Info, Calendar } from 'lucide-react';
+import { Users, TrendingDown, Info, Calendar, Loader2 } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 
 // Função auxiliar para parsing de datas (ISO ou PT-BR DD/MM/YYYY)
@@ -25,12 +25,21 @@ const parseDateSafe = (dateStr: string): Date => {
     return new Date(); // Fallback
 };
 
+// Helper para calcular diferença em meses
+const monthDiff = (d1: Date, d2: Date) => {
+    let months;
+    months = (d2.getFullYear() - d1.getFullYear()) * 12;
+    months -= d1.getMonth();
+    months += d2.getMonth();
+    return months <= 0 ? 0 : months;
+};
+
 const Retention: React.FC = () => {
-    const { users } = useUserStore();
+    const { users, isLoading } = useUserStore();
     const [evolutionPeriod, setEvolutionPeriod] = useState<'week' | 'month' | 'year'>('year');
 
     // --- CÁLCULOS DINÂMICOS (EXCLUDING TEST USERS) ---
-    const validUsers = users.filter(u => !u.isTest);
+    const validUsers = useMemo(() => users.filter(u => !u.isTest), [users]);
 
     const totalUsers = validUsers.length;
     const churnedUsers = validUsers.filter(u => u.status === 'Cancelado').length;
@@ -86,7 +95,6 @@ const Retention: React.FC = () => {
         }
 
         // 2. Construir Timeline (do passado para o presente)
-        // Geramos os pontos de tempo (buckets)
         const buckets = [];
         for (let i = iterations - 1; i >= 0; i--) {
             buckets.push({
@@ -95,7 +103,6 @@ const Retention: React.FC = () => {
             });
         }
         
-        // Atualiza labels (o stepDate pode mudar a data original, então fazemos isso depois da lógica de data)
         buckets.forEach(b => b.label = dateFormat(b.date));
 
         // 3. Popular Buckets com dados Reais
@@ -111,8 +118,7 @@ const Retention: React.FC = () => {
                 if (joinDate <= pointDate) {
                     // É Churn?
                     if (user.status === 'Cancelado') {
-                        // Data estimada do churn (usamos lastActive ou fallback para joinedAt se inconsistente)
-                        // Para visualização, se lastActive < joinedAt, assumimos churn imediato
+                        // Data estimada do churn
                         let churnDate = parseDateSafe(user.lastActive);
                         if (churnDate < joinDate) churnDate = joinDate;
 
@@ -134,11 +140,9 @@ const Retention: React.FC = () => {
                 name: bucket.label,
                 active: activeCount,
                 churn: churnCount,
-                fullDate: pointDate // debug
             });
         });
 
-        // Se não houver dados nenhuns (array vazio), gera um placeholder zerado para não quebrar o gráfico
         if (dataPoints.length === 0) {
             return [{ name: 'Sem dados', active: 0, churn: 0 }];
         }
@@ -147,28 +151,101 @@ const Retention: React.FC = () => {
 
     }, [evolutionPeriod, validUsers]);
 
-    // --- DADOS COHORT (MOCK VISUAL - Mantido pois requer log histórico complexo) ---
+    // --- DADOS COHORT REAL ---
     const cohortData = useMemo(() => {
-        if (totalUsers === 0) return [];
-        const base = 100 - churnRate;
-        return [
-            { month: 'Jan', rates: [100, base - 1, base - 2, base - 2.5, base - 3, base - 3.2].map(n => Math.max(0, Math.round(n))) },
-            { month: 'Fev', rates: [100, base - 0.5, base - 1.5, base - 2.0, base - 2.8].map(n => Math.max(0, Math.round(n))) },
-            { month: 'Mar', rates: [100, base - 1.2, base - 2.2, base - 3.0].map(n => Math.max(0, Math.round(n))) },
-            { month: 'Abr', rates: [100, base - 0.8, base - 1.5].map(n => Math.max(0, Math.round(n))) },
-            { month: 'Mai', rates: [100, base - 0.5].map(n => Math.max(0, Math.round(n))) },
-            { month: 'Jun', rates: [100].map(n => Math.max(0, Math.round(n))) },
-        ];
-    }, [totalUsers, churnRate]);
+        if (validUsers.length === 0) return [];
+
+        const now = new Date();
+        const cohorts: Record<string, { startSize: number, retained: number[], monthDate: Date }> = {};
+        const monthsToTrack = 6; // Mostramos 6 meses de retenção
+
+        // 1. Inicializar Cohorts (Agrupar por Mês de Entrada)
+        validUsers.forEach(user => {
+            const joinDate = parseDateSafe(user.joinedAt);
+            const cohortKey = joinDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }); // ex: Jan/24
+            
+            // Chave de ordenação (YYYY-MM)
+            const sortKey = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
+
+            if (!cohorts[sortKey]) {
+                cohorts[sortKey] = {
+                    startSize: 0,
+                    retained: Array(monthsToTrack).fill(0),
+                    monthDate: new Date(joinDate.getFullYear(), joinDate.getMonth(), 1)
+                };
+            }
+
+            // Incrementar tamanho inicial da coorte
+            cohorts[sortKey].startSize++;
+
+            // Calcular retenção para os meses subsequentes
+            let churnDate: Date | null = null;
+            if (user.status === 'Cancelado') {
+                churnDate = parseDateSafe(user.lastActive);
+                if (churnDate < joinDate) churnDate = joinDate;
+            }
+
+            // Verificar retenção para mês 0, 1, 2...
+            for (let i = 0; i < monthsToTrack; i++) {
+                // Data de corte para este mês da coorte
+                const checkDate = new Date(cohorts[sortKey].monthDate);
+                checkDate.setMonth(checkDate.getMonth() + i + 1); // Fim do mês seguinte
+                checkDate.setDate(0); // Último dia do mês
+
+                // Só calculamos se o mês já aconteceu (não prevemos futuro)
+                if (checkDate <= now || (checkDate.getMonth() === now.getMonth() && checkDate.getFullYear() === now.getFullYear())) {
+                    if (churnDate) {
+                        // Se churnou DEPOIS da data de corte, estava retido
+                        if (churnDate > checkDate) {
+                            cohorts[sortKey].retained[i]++;
+                        }
+                    } else {
+                        // Se não churnou, está retido
+                        cohorts[sortKey].retained[i]++;
+                    }
+                } else {
+                    // Mês futuro -> null para indicar que não existe dado ainda
+                    cohorts[sortKey].retained[i] = -1; 
+                }
+            }
+        });
+
+        // 2. Formatar para Tabela
+        // Pegar apenas as últimas 6 coortes e ordenar
+        const sortedKeys = Object.keys(cohorts).sort().reverse().slice(0, 6);
+
+        return sortedKeys.map(key => {
+            const data = cohorts[key];
+            const rates = data.retained.map(count => {
+                if (count === -1) return null; // Futuro
+                if (data.startSize === 0) return 0;
+                return Math.round((count / data.startSize) * 100);
+            });
+
+            // Mês 0 sempre é 100% (por definição, ou quase)
+            // Ajuste visual: se o array tiver dados, forçamos o índice 0 ser 100 se o usuário quiser a visão clássica
+            // Mas a lógica acima (checkDate) calcula quem terminou o mês 0. Se churnou no dia 2, não conta.
+            // Vamos manter a lógica estrita de "Retention at End of Month".
+
+            return {
+                month: data.monthDate.toLocaleDateString('pt-BR', { month: 'short' }),
+                fullDate: key, // Para debug/sort
+                size: data.startSize,
+                rates: rates
+            };
+        });
+
+    }, [validUsers]);
 
     // Pequeno gráfico de sparkline para o KPI topo
     const churnSparkData = evolutionData.map(d => ({ value: d.churn }));
 
-    const getCellColor = (rate: number) => {
-        if (rate >= 95) return 'bg-neon-green/30 text-white';
-        if (rate >= 85) return 'bg-neon-green/10 text-gray-200';
-        if (rate >= 70) return 'bg-yellow-500/10 text-yellow-500';
-        return 'bg-red-500/10 text-red-500';
+    const getCellColor = (rate: number | null) => {
+        if (rate === null) return 'bg-transparent';
+        if (rate >= 90) return 'bg-neon-green/20 text-neon-green border border-neon-green/30';
+        if (rate >= 75) return 'bg-neon-blue/20 text-neon-blue border border-neon-blue/30';
+        if (rate >= 50) return 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
+        return 'bg-red-500/10 text-red-500 border border-red-500/20';
     };
 
     return (
@@ -238,80 +315,91 @@ const Retention: React.FC = () => {
                     </div>
 
                     <div className="h-[320px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorChurn" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.pink} stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor={COLORS.pink} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{fill: '#6b7280', fontSize: 12}} 
-                                    dy={10} 
-                                    interval={evolutionPeriod === 'month' ? 2 : 0}
-                                />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{fill: '#6b7280', fontSize: 12}} 
-                                    allowDecimals={false}
-                                />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0B0F1A', borderColor: '#374151', color: '#fff', borderRadius: '8px' }}
-                                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                                    formatter={(value: number, name: string) => [
-                                        value, 
-                                        name === 'active' ? 'Usuários Ativos' : 'Churn (Cancelados)'
-                                    ]}
-                                    labelStyle={{ color: '#9ca3af', marginBottom: '0.5rem' }}
-                                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
-                                />
-                                <Legend 
-                                    verticalAlign="top" 
-                                    height={36} 
-                                    iconType="circle"
-                                    formatter={(value) => <span className="text-xs text-gray-400 ml-1">{value === 'active' ? 'Ativos' : 'Churn'}</span>}
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="active" 
-                                    name="active"
-                                    stroke={COLORS.green} 
-                                    strokeWidth={2}
-                                    fill="url(#colorActive)" 
-                                    animationDuration={1000}
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="churn" 
-                                    name="churn"
-                                    stroke={COLORS.pink} 
-                                    strokeWidth={2}
-                                    fill="url(#colorChurn)" 
-                                    animationDuration={1000}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        {isLoading ? (
+                            <div className="h-full flex items-center justify-center">
+                                <Loader2 className="animate-spin text-neon-cyan" size={32} />
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorChurn" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={COLORS.pink} stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor={COLORS.pink} stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis 
+                                        dataKey="name" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{fill: '#6b7280', fontSize: 12}} 
+                                        dy={10} 
+                                        interval={evolutionPeriod === 'month' ? 2 : 0}
+                                    />
+                                    <YAxis 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{fill: '#6b7280', fontSize: 12}} 
+                                        allowDecimals={false}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#0B0F1A', borderColor: '#374151', color: '#fff', borderRadius: '8px' }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                        formatter={(value: number, name: string) => [
+                                            value, 
+                                            name === 'active' ? 'Usuários Ativos' : 'Churn (Cancelados)'
+                                        ]}
+                                        labelStyle={{ color: '#9ca3af', marginBottom: '0.5rem' }}
+                                        cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                                    />
+                                    <Legend 
+                                        verticalAlign="top" 
+                                        height={36} 
+                                        iconType="circle"
+                                        formatter={(value) => <span className="text-xs text-gray-400 ml-1">{value === 'active' ? 'Ativos' : 'Churn'}</span>}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="active" 
+                                        name="active"
+                                        stroke={COLORS.green} 
+                                        strokeWidth={2}
+                                        fill="url(#colorActive)" 
+                                        animationDuration={1000}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="churn" 
+                                        name="churn"
+                                        stroke={COLORS.pink} 
+                                        strokeWidth={2}
+                                        fill="url(#colorChurn)" 
+                                        animationDuration={1000}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        )}
                     </div>
                 </Card>
 
-                {/* Cohort Analysis */}
+                {/* Cohort Analysis (REAL CALCULATION) */}
                 <Card className="col-span-12">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-medium text-white">Análise de Cohort (Retenção Mensal)</h3>
-                        <div className="flex gap-2">
-                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/30 rounded-full"></div> &gt;95%</span>
-                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/10 rounded-full"></div> 85-95%</span>
-                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-yellow-500/10 rounded-full"></div> 70-85%</span>
+                        <div>
+                            <h3 className="text-lg font-medium text-white">Análise de Cohort (Retenção Mensal)</h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Porcentagem de usuários que permanecem ativos após X meses da entrada.
+                            </p>
+                        </div>
+                        <div className="flex gap-4">
+                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-green/30 rounded-full"></div> &gt;90%</span>
+                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-neon-blue/20 rounded-full"></div> 75-90%</span>
+                            <span className="text-xs text-gray-500 flex items-center gap-1"><div className="w-2 h-2 bg-red-500/20 rounded-full"></div> &lt;50%</span>
                         </div>
                     </div>
                     
@@ -325,7 +413,8 @@ const Retention: React.FC = () => {
                             <table className="w-full text-center border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="p-3 text-left text-xs text-gray-500 uppercase font-medium">Mês</th>
+                                        <th className="p-3 text-left text-xs text-gray-500 uppercase font-medium bg-white/[0.02]">Coorte (Entrada)</th>
+                                        <th className="p-3 text-xs text-gray-500 uppercase font-medium bg-white/[0.02]">Clientes</th>
                                         {[0, 1, 2, 3, 4, 5].map(m => (
                                             <th key={m} className="p-3 text-xs text-gray-500 uppercase font-medium">Mês {m}</th>
                                         ))}
@@ -333,18 +422,27 @@ const Retention: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {cohortData.map((row, idx) => (
-                                        <tr key={idx}>
-                                            <td className="p-3 text-left text-sm font-medium text-white bg-white/[0.02]">{row.month}</td>
+                                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                                            <td className="p-3 text-left text-sm font-bold text-white font-mono border-r border-white/5">
+                                                {row.month}
+                                            </td>
+                                            <td className="p-3 text-sm text-gray-400 font-mono border-r border-white/5">
+                                                {row.size}
+                                            </td>
                                             {row.rates.map((rate, rIdx) => (
                                                 <td key={rIdx} className="p-1">
-                                                    <div className={`py-2 rounded text-sm font-mono ${getCellColor(rate)}`}>
-                                                        {rate}%
-                                                    </div>
+                                                    {rate !== null ? (
+                                                        <div className={`py-2 mx-1 rounded text-xs font-bold font-mono ${getCellColor(rate)}`}>
+                                                            {rate}%
+                                                        </div>
+                                                    ) : (
+                                                        <div className="py-2 text-xs text-gray-700">-</div>
+                                                    )}
                                                 </td>
                                             ))}
-                                            {/* Fill empty cells */}
+                                            {/* Fill empty cells if rates array is shorter than expected columns (rare) */}
                                             {Array.from({ length: 6 - row.rates.length }).map((_, i) => (
-                                                <td key={`empty-${i}`} className="p-1 bg-transparent"></td>
+                                                <td key={`empty-${i}`} className="p-1"></td>
                                             ))}
                                         </tr>
                                     ))}
