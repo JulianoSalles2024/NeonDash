@@ -12,71 +12,64 @@ interface AgentPlaygroundProps {
 
 const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
     const { addToast } = useToastStore();
-    const { recordUsage, addLog } = useAgentStore(); // Hook para salvar dados reais
+    const { recordUsage, addLog } = useAgentStore();
     
     const [prompt, setPrompt] = useState('');
     const [systemPrompt, setSystemPrompt] = useState('');
     const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Updated metrics state to include charCount
     const [metrics, setMetrics] = useState<{latency: number, tokens: number, cost: number, charCount: number} | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Initialize/Reset
     useEffect(() => {
         setSystemPrompt(agent.systemPrompt || 'Você é um assistente útil.');
-    }, [agent]);
+    }, [agent.systemPrompt]);
 
-    // Auto-scroll to bottom safely using requestAnimationFrame to avoid layout thrashing/freezes
+    // Auto-scroll to bottom
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
     useEffect(() => {
-        if (messages.length > 0) {
-            requestAnimationFrame(() => {
-                if (messagesEndRef.current) {
-                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
-        }
-    }, [messages]);
+        scrollToBottom();
+    }, [messages, isLoading]);
 
     const handleRun = async () => {
-        if (isLoading || !prompt.trim()) return;
+        if (!prompt.trim() || isLoading) return;
 
         const currentPrompt = prompt;
-        const promptLength = currentPrompt.length; // Capture length before clearing
-        const newUserMsg = { role: 'user' as const, content: currentPrompt };
+        const promptLength = currentPrompt.length;
         
-        // Optimistic update
+        const newUserMsg = { role: 'user' as const, content: currentPrompt };
+        const historyForAI = [...messages]; 
+
         setMessages(prev => [...prev, newUserMsg]);
-        setPrompt(''); // Clear input immediately
+        setPrompt(''); 
         setIsLoading(true);
         setMetrics(null);
 
         const startTime = Date.now();
 
         try {
-            // Call Real AI Service
             const response = await generateAgentChat(
                 agent.model,
                 systemPrompt,
                 agent.temperature || 0.7,
-                messages, // Pass history excluding new message
+                historyForAI, 
                 currentPrompt
             );
 
             const endTime = Date.now();
             const latency = endTime - startTime;
 
-            // Calculate estimated cost
             const pricing = MODEL_REGISTRY[agent.model] || { inputPrice: 0.50, outputPrice: 1.50 };
             
-            const inputCost = (response.usage.promptTokens / 1000000) * pricing.inputPrice;
-            const outputCost = (response.usage.responseTokens / 1000000) * pricing.outputPrice;
+            const inputCost = (response.usage.promptTokens || 0) / 1000000 * pricing.inputPrice;
+            const outputCost = (response.usage.responseTokens || 0) / 1000000 * pricing.outputPrice;
             const totalCost = inputCost + outputCost;
 
-            setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
-            
-            // --- ATUALIZAÇÃO DOS DADOS REAIS ---
             const usageData = {
                 tokens: response.usage.totalTokens,
                 cost: totalCost,
@@ -84,17 +77,16 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
                 charCount: promptLength
             };
 
+            setMessages(prev => [...prev, { role: 'assistant', content: response.text }]);
             setMetrics(usageData);
 
-            // 1. Grava Métricas no Agente (Store + DB)
-            await recordUsage(agent.id, {
+            recordUsage(agent.id, {
                 tokens: usageData.tokens,
                 cost: usageData.cost,
                 latency: usageData.latency,
                 successful: true
             });
 
-            // 2. Adiciona Log na Tabela
             addLog({
                 id: Date.now().toString(),
                 agentId: agent.id,
@@ -109,23 +101,24 @@ const AgentPlayground: React.FC<AgentPlaygroundProps> = ({ agent }) => {
             });
 
         } catch (error: any) {
-            console.error(error);
+            console.error("Playground Error:", error);
+            const errorMessage = error.message || "Erro desconhecido ao processar solicitação.";
+            
             addToast({
                 type: 'error',
                 title: 'Erro de Execução',
-                message: 'Falha ao obter resposta da IA. Verifique sua conexão ou API Key.'
+                message: errorMessage
             });
-            setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ Erro: Não foi possível processar sua solicitação." }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${errorMessage}` }]);
             
-            // Registra log de erro
             addLog({
                 id: Date.now().toString(),
                 agentId: agent.id,
                 timestamp: new Date().toLocaleTimeString(),
                 input: currentPrompt,
-                output: error.message || "Erro desconhecido",
+                output: errorMessage,
                 tokens: 0,
-                latency: 0,
+                latency: Date.now() - startTime,
                 cost: 0,
                 status: 'error',
                 model: agent.model
