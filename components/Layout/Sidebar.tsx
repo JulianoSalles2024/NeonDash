@@ -17,6 +17,7 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { useUIStore } from '../../store/useUIStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useRBAC } from '../../hooks/useRBAC';
 
 const NavItem = ({ icon: Icon, label, to, active, collapsed, onClick }: { icon: any, label: string, to: string, active: boolean, collapsed: boolean, onClick?: () => void }) => (
   <Link 
@@ -53,6 +54,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const { isMobileMenuOpen, closeMobileMenu, isSidebarCollapsed, toggleSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
+  const { hasPermission } = useRBAC();
 
   return (
     <>
@@ -111,23 +113,43 @@ const Sidebar: React.FC = () => {
         <nav className="flex-1 p-2 md:p-4 overflow-y-auto overflow-x-hidden scrollbar-hide">
           <div className="mb-6">
             <SectionTitle label="Plataforma" collapsed={isSidebarCollapsed} />
-            <NavItem icon={LayoutDashboard} label="Mission Control" to="/" active={location.pathname === '/'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={Activity} label="Motor de Saúde" to="/health" active={location.pathname === '/health'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            
+            {hasPermission('view_dashboard') && (
+                <NavItem icon={LayoutDashboard} label="Mission Control" to="/" active={location.pathname === '/'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
+            
+            {hasPermission('view_health') && (
+                <NavItem icon={Activity} label="Motor de Saúde" to="/health" active={location.pathname === '/health'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
           </div>
 
           <div className="mb-6">
             <SectionTitle label="Crescimento" collapsed={isSidebarCollapsed} />
-            <NavItem icon={Users} label="Usuários" to="/users" active={location.pathname === '/users'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={Bot} label="Agentes" to="/agents" active={location.pathname === '/agents'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={PieChart} label="Retenção" to="/retention" active={location.pathname === '/retention'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={CreditCard} label="Créditos e Fatura" to="/billing" active={location.pathname === '/billing'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            
+            {hasPermission('view_users') && (
+                <NavItem icon={Users} label="Usuários" to="/users" active={location.pathname === '/users'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
+            
+            {hasPermission('view_agents') && (
+                <NavItem icon={Bot} label="Agentes" to="/agents" active={location.pathname === '/agents'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
+            
+            {hasPermission('view_retention') && (
+                <NavItem icon={PieChart} label="Retenção" to="/retention" active={location.pathname === '/retention'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
+            
+            {hasPermission('view_billing') && (
+                <NavItem icon={CreditCard} label="Créditos e Fatura" to="/billing" active={location.pathname === '/billing'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            )}
           </div>
 
-          <div>
-            <SectionTitle label="Sistema" collapsed={isSidebarCollapsed} />
-            <NavItem icon={Network} label="Integrações" to="/integrations" active={location.pathname === '/integrations'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-            <NavItem icon={Settings} label="Configurações" to="/settings" active={location.pathname === '/settings'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
-          </div>
+          {hasPermission('view_system') && (
+              <div>
+                <SectionTitle label="Sistema" collapsed={isSidebarCollapsed} />
+                <NavItem icon={Network} label="Integrações" to="/integrations" active={location.pathname === '/integrations'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+                <NavItem icon={Settings} label="Configurações" to="/settings" active={location.pathname === '/settings'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+              </div>
+          )}
         </nav>
 
         {/* Footer User Profile */}
@@ -137,7 +159,10 @@ const Sidebar: React.FC = () => {
             
             <div className={`flex-1 overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
               <p className="text-sm font-medium text-white truncate">{user?.name || 'Admin'}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email || 'Acesso Restrito'}</p>
+              <div className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${user?.role === 'admin' ? 'bg-neon-purple' : 'bg-neon-cyan'}`}></span>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider truncate">{user?.role || 'VIEWER'}</p>
+              </div>
             </div>
             
             <button 
