@@ -12,7 +12,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target, ArrowRight, AlertCircle, Lightbulb } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target, ArrowRight, AlertCircle, Lightbulb, TrendingUp, Gem } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 // RetentionChart removed from Dashboard to keep only in Retention page
 
@@ -38,69 +38,100 @@ const Dashboard: React.FC = () => {
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
 
-  // --- JOURNEY FRICTION LOGIC (NEW) ---
+  // --- JOURNEY FRICTION LOGIC (UPDATED RULES) ---
   const frictionStats = useMemo(() => {
       const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length || 1;
       
-      const counts = { activation: 0, method: 0, execution: 0, value: 0 };
+      let countActivation = 0;
+      let countMethod = 0;
+      let countExecution = 0;
+      let countValue = 0;
 
       activeBase.forEach(u => {
           const steps = u.journey?.steps || [];
-          const completed = steps.filter(s => s.isCompleted).length;
+          // IDs baseados no template: 1=Ativação, 2=Método, 3=Execução, 4=Valor, 5=Upsell
+          const s1 = steps.find(s => s.id === '1')?.isCompleted;
+          const s2 = steps.find(s => s.id === '2')?.isCompleted;
+          const s3 = steps.find(s => s.id === '3')?.isCompleted;
+          const s4 = steps.find(s => s.id === '4')?.isCompleted;
+
+          // REGRAS DE NEGÓCIO ATUALIZADAS:
           
-          // Mapeamento de ONDE o usuário está PARADO (Gargalo Atual)
-          if (completed === 0) counts.activation++; // Está tentando ativar
-          else if (completed === 1) counts.method++; // Ativou, está no método
-          else if (completed === 2) counts.execution++; // Método ok, está executando
-          else if (completed === 3) counts.value++; // Executando, buscando valor
-          // 4+ seria Sucesso/Escala, não entra no diagnóstico de problema
+          // 1. Card Ativação: Usuários que AINDA NÃO ativaram (Passo 1 Pendente)
+          if (!s1) {
+              countActivation++;
+          }
+          // 2. Card Método: Considerar quando "Estruturação do Método" (Passo 2) estiver MARCADO
+          // (E ainda não marcou execução, para não duplicar)
+          else if (s2 && !s3) {
+              countMethod++;
+          }
+          // 3. Card Execução: Considerar quando "Execução Assistida" (Passo 3) estiver MARCADO
+          // (E ainda não marcou valor)
+          else if (s3 && !s4) {
+              countExecution++;
+          }
+          // 4. Card Valor: Considerar quando "Valor Gerado" (Passo 4) estiver MARCADO
+          else if (s4) {
+              countValue++;
+          }
+          // Nota: Usuários que tem S1(Ativação) mas NÃO S2(Método) não caem em nenhum card principal
+          // pois a regra do Método exige estar MARCADO. Eles são o "Gap" de setup.
       });
 
       return [
           { 
               id: 'activation', 
               label: 'Ativação', 
-              insight: 'Problema de Onboarding', 
-              desc: 'Usuários presos na etapa inicial.',
-              count: counts.activation, 
-              percent: (counts.activation / total) * 100,
+              insight: 'Pré-Ativação', 
+              desc: 'Usuários que ainda não concluíram o onboarding inicial.',
+              count: countActivation, 
+              percent: (countActivation / total) * 100,
               color: 'text-red-400', 
               bg: 'bg-red-500', 
-              border: 'border-red-500/30'
+              border: 'border-red-500/30',
+              icon: AlertCircle,
+              special: false
           },
           { 
               id: 'method', 
               label: 'Método', 
-              insight: 'Clareza / Setup', 
-              desc: 'Dificuldade em entender a metodologia.',
-              count: counts.method, 
-              percent: (counts.method / total) * 100,
+              insight: 'Método Estruturado', 
+              desc: 'Setup metodológico concluído. Preparando execução.',
+              count: countMethod, 
+              percent: (countMethod / total) * 100,
               color: 'text-orange-400', 
               bg: 'bg-orange-500', 
-              border: 'border-orange-500/30'
+              border: 'border-orange-500/30',
+              icon: CheckCircle,
+              special: false
           },
           { 
               id: 'execution', 
               label: 'Execução', 
-              insight: 'Sucesso Parcial', 
-              desc: 'Sistema configurado, mas uso baixo.',
-              count: counts.execution, 
-              percent: (counts.execution / total) * 100,
+              insight: 'Execução Assistida', 
+              desc: 'Em operação com suporte. Rumo ao primeiro valor.',
+              count: countExecution, 
+              percent: (countExecution / total) * 100,
               color: 'text-blue-400', 
               bg: 'bg-blue-500', 
-              border: 'border-blue-500/30'
+              border: 'border-blue-500/30',
+              icon: Zap,
+              special: false
           },
           { 
               id: 'value', 
-              label: 'Valor', 
-              insight: 'Prova de Produto', 
-              desc: 'Falta confirmar ROI para escalar.',
-              count: counts.value, 
-              percent: (counts.value / total) * 100,
+              label: 'Valor & Upsell', 
+              insight: 'Valor Gerado', 
+              desc: 'Sucesso comprovado. Candidatos a expansão.',
+              count: countValue, 
+              percent: (countValue / total) * 100,
               color: 'text-neon-green', 
               bg: 'bg-neon-green', 
-              border: 'border-neon-green/30'
+              border: 'border-neon-green/50', // Borda mais forte para destaque
+              icon: Gem,
+              special: true // Flag para renderização diferenciada
           }
       ];
   }, [users]);
@@ -316,8 +347,8 @@ const Dashboard: React.FC = () => {
                             <Lightbulb size={20} className="text-yellow-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-white">Diagnóstico de Fricção</h3>
-                            <p className="text-xs text-gray-500">Análise de gargalos por etapa da jornada.</p>
+                            <h3 className="text-lg font-bold text-white">Funil de Fricção & Oportunidade</h3>
+                            <p className="text-xs text-gray-500">Distribuição da base por etapa <span className="text-white font-bold">concluída (marcada)</span>.</p>
                         </div>
                     </div>
 
@@ -333,13 +364,22 @@ const Dashboard: React.FC = () => {
 
                                 <div className={`
                                     relative z-10 p-4 rounded-xl border bg-[#0B0F1A] hover:-translate-y-1 transition-all duration-300 h-full flex flex-col justify-between
+                                    ${stat.special ? 'bg-gradient-to-br from-[#0B0F1A] to-neon-green/5 shadow-[0_0_20px_rgba(52,255,176,0.05)]' : ''}
                                     ${stat.border}
                                 `}>
                                     <div>
                                         <div className="flex justify-between items-start mb-2">
                                             <span className={`text-xs font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</span>
-                                            {stat.count > 0 && <AlertCircle size={14} className={stat.color} />}
+                                            {/* Icon Logic */}
+                                            <stat.icon size={16} className={stat.color} />
                                         </div>
+                                        
+                                        {stat.special && stat.count > 0 && (
+                                            <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neon-green text-dark-bg text-[10px] font-bold uppercase tracking-wide animate-pulse">
+                                                <TrendingUp size={10} /> Oportunidade Upsell
+                                            </div>
+                                        )}
+
                                         <p className="text-sm font-bold text-white mb-1 flex items-center gap-2">
                                             {stat.insight}
                                         </p>
