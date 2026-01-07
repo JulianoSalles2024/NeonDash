@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
 
   // Journey Status Stats
   // FIX: Allow Test Users here so the visual bars update during testing
+  // Only exclude users who have already churned (lost)
   const journeyStats = useMemo(() => {
       const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length || 1;

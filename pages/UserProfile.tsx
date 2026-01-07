@@ -155,8 +155,8 @@ const UserProfile: React.FC = () => {
   const stepsCompleted = journey.steps.filter(s => s.isCompleted).length;
   const progressPercent = journey.steps.length > 0 ? (stepsCompleted / journey.steps.length) * 100 : 0;
 
-  // LOGIC: Stagnation Alert (Default threshold 15 days)
-  const isStagnant = daysStagnant > 15 && journey.status === 'in_progress';
+  // LOGIC: Stagnation Alert (Threshold 15 days OR if User is marked as Risk)
+  const isStagnant = (daysStagnant > 15 || user.status === UserStatus.RISK) && journey.status === 'in_progress';
 
   // LOGIC: Social Proof Candidate
   // Rule: High Health Score (> 70) AND (Finished "Value Generated" step OR Finished Journey)
