@@ -59,32 +59,27 @@ export const analyzeJourney = async (
         const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
-            Analise a jornada do cliente SaaS "${userName}" para identificar gargalos de Customer Success.
+            Analise a jornada do cliente SaaS "${userName}" para identificar gargalos ou sucessos.
             
-            DADOS DO CLIENTE:
-            - Tempo de casa (Lifespan): ${daysSinceJoined} dias.
-            - Estágio Atual (Onde travou): ${currentStage}.
-            - Dias estagnado neste estágio: ${daysStagnant} dias.
-            - Etapas já concluídas: ${completedSteps.join(', ')}.
+            DADOS:
+            - Tempo de casa: ${daysSinceJoined} dias.
+            - Estágio Atual (Travado em): ${currentStage}.
+            - Dias sem avançar (Estagnação): ${daysStagnant} dias.
+            - Etapas Feitas: ${completedSteps.join(', ')}.
 
-            REGRAS DE DIAGNÓSTICO (Use estritamente estas lógicas):
-            1. Se travado em "Ativação" e dias estagnado > 7 -> "🚨 Problema de Onboarding: Cliente não entende a plataforma."
-            2. Se "Ativação" completa mas travado em "Estruturação do Método" -> "⚠️ Problema de Clareza/Setup: UX ok, mas usuário não entende 'como aplicar' o método."
-            3. Se "Execução Assistida" completa mas travado em "Valor Gerado" -> "💡 Sucesso Parcial: Produto sendo usado, mas não está gerando transformação clara (ROI)."
-            4. Se dias estagnado > 20 -> "📉 Risco de Churn Silencioso: Falta de acompanhamento ou abandono."
-            5. Se tudo fluindo rápido (< 3 dias por etapa) -> "✅ Adoção Acelerada: Oferecer Upsell ou Case de Sucesso."
+            REGRAS OBRIGATÓRIAS:
+            1. ESTAGNAÇÃO CRÍTICA: Se dias estagnado > 15, comece com "🚨 ALERTA DE ESTAGNAÇÃO:". Sugira intervenção manual (ligação/reunião).
+            2. PROVA SOCIAL: Se completou "Valor Gerado" ou jornada completa, comece com "💎 OPORTUNIDADE DE CASE:". Sugira pedir depoimento.
+            3. NORMAL: Se tudo ok, dê uma dica tática para o próximo passo.
 
-            SAÍDA ESPERADA:
-            Gere apenas o diagnóstico curto (máximo 2 frases).
-            Comece com o Emoji correspondente.
-            Seja direto e sugira a próxima ação operacional.
+            Seja curto (máximo 2 frases). Direto ao ponto.
         `;
         
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
-                temperature: 0.4 // Baixa temperatura para ser mais analítico e seguir as regras
+                temperature: 0.4 
             }
         });
 

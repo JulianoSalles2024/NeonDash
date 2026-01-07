@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit, Megaphone, Timer } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { COLORS } from '../constants';
@@ -29,6 +29,9 @@ const UserProfile: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // Derived State for Alerts
+  const [daysStagnant, setDaysStagnant] = useState(0);
+
   useEffect(() => {
       if (user?.journey?.coreGoal) {
           setTempGoal(user.journey.coreGoal);
@@ -48,23 +51,23 @@ const UserProfile: React.FC = () => {
               const completedSteps = user.journey.steps.filter(s => s.isCompleted);
               const nextStep = user.journey.steps.find(s => !s.isCompleted);
               
-              let daysStagnant = 0;
+              let calcDaysStagnant = 0;
               
-              // Lógica temporal: Se tiver passos completados, calcula estagnação baseada no último passo
-              // Se não tiver nenhum passo, a estagnação é o tempo total de casa (desde joinedAt)
               if (completedSteps.length > 0) {
                   const lastCompleted = completedSteps[completedSteps.length - 1];
                   const lastDate = lastCompleted.completedAt ? new Date(lastCompleted.completedAt) : joinedAt;
-                  daysStagnant = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 3600 * 24)));
+                  calcDaysStagnant = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 3600 * 24)));
               } else {
-                  daysStagnant = daysSinceJoined;
+                  calcDaysStagnant = daysSinceJoined;
               }
+              
+              setDaysStagnant(calcDaysStagnant);
 
               const analysis = await analyzeJourney(
                   user.name,
                   daysSinceJoined,
                   nextStep ? nextStep.label : 'Jornada Finalizada',
-                  daysStagnant,
+                  calcDaysStagnant,
                   completedSteps.map(s => s.label)
               );
               
@@ -151,6 +154,16 @@ const UserProfile: React.FC = () => {
 
   const stepsCompleted = journey.steps.filter(s => s.isCompleted).length;
   const progressPercent = journey.steps.length > 0 ? (stepsCompleted / journey.steps.length) * 100 : 0;
+
+  // LOGIC: Stagnation Alert (Default threshold 15 days)
+  const isStagnant = daysStagnant > 15 && journey.status === 'in_progress';
+
+  // LOGIC: Social Proof Candidate
+  // Rule: High Health Score (> 70) AND (Finished "Value Generated" step OR Finished Journey)
+  const isSocialProofCandidate = user.healthScore > 70 && (
+      journey.status === 'achieved' || 
+      journey.steps.find(s => s.label.includes("Valor Gerado"))?.isCompleted
+  );
 
   const handleToggleStep = async (stepId: string) => {
       const updatedSteps = journey.steps.map(s => {
@@ -400,6 +413,44 @@ const UserProfile: React.FC = () => {
 
           {activeTab === 'journey' && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="max-w-5xl mx-auto">
+                  
+                  {/* --- SMART ALERTS SECTION (NEW) --- */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {isStagnant && (
+                          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                              <div className="p-2 bg-red-500/20 rounded-lg text-red-400 shrink-0">
+                                  <Timer size={20} />
+                              </div>
+                              <div>
+                                  <h4 className="text-sm font-bold text-red-400 uppercase tracking-wide flex items-center gap-2">
+                                      Alerta de Estagnação
+                                  </h4>
+                                  <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                                      Este cliente não avança na jornada há <span className="font-mono font-bold text-white bg-red-500/20 px-1 rounded">{daysStagnant} dias</span>.
+                                      <br/>Recomendamos intervenção manual (Call/Email).
+                                  </p>
+                              </div>
+                          </motion.div>
+                      )}
+
+                      {isSocialProofCandidate && (
+                          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-neon-purple/10 to-neon-blue/5 border border-neon-purple/30 p-4 rounded-xl flex items-start gap-3 shadow-[0_0_15px_rgba(155,92,255,0.1)]">
+                              <div className="p-2 bg-neon-purple/20 rounded-lg text-neon-purple shrink-0">
+                                  <Award size={20} />
+                              </div>
+                              <div>
+                                  <h4 className="text-sm font-bold text-neon-purple uppercase tracking-wide flex items-center gap-2">
+                                      Radar de Prova Social <Sparkles size={12} />
+                                  </h4>
+                                  <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                                      Alta saúde e valor gerado confirmados.
+                                      <br/>Momento ideal para solicitar <strong>depoimento ou Case de Sucesso</strong>.
+                                  </p>
+                              </div>
+                          </motion.div>
+                      )}
+                  </div>
+
                   <Card className="p-0 overflow-hidden border-neon-cyan/20">
                       <div className="relative p-8 bg-gradient-to-r from-neon-cyan/10 to-transparent border-b border-white/10">
                           <div className="absolute top-4 right-4">
