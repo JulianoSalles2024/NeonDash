@@ -1,14 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 import { AgentChatResponse } from '../types';
 
+// CHAVE DE EMERGÊNCIA - Atualizada para o usuário
+// Isso garante que funcione mesmo sem reiniciar o terminal
+const EMERGENCY_API_KEY = "AIzaSyCZw7K0My40AgnMQFHz-YBdKq3XlAcIjTs";
+
 // Helper para obter a chave de forma segura
 const getApiKey = () => {
-  // O Vite substitui 'process.env.API_KEY' pelo valor string definido no vite.config.ts
-  const key = process.env.API_KEY;
+  // Tenta pegar do ambiente (Vite config), mas se falhar, usa a chave direta
+  // Isso resolve o problema de precisar reiniciar o servidor 'npm run dev'
+  const key = process.env.API_KEY || EMERGENCY_API_KEY;
   
   if (!key || key.includes("undefined")) {
-    console.error("CRITICAL ERROR: API Key is missing or undefined in the browser bundle.");
-    console.error("Please restart the Vite server using 'npm run dev' to reload config.");
+    console.error("CRITICAL ERROR: API Key is missing.");
     return null;
   }
   return key;
@@ -44,7 +48,7 @@ const getGeminiModelName = (uiModel: string) => {
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return "⚠️ API Key não detectada. Reinicie o servidor local.";
+    if (!apiKey) return "⚠️ Configuração incompleta da API.";
 
     const ai = new GoogleGenAI({ apiKey });
     
@@ -61,7 +65,7 @@ export const generateDashboardInsight = async (metricsSummary: string): Promise<
 
   } catch (error) {
     console.warn("AI Insight Error:", error);
-    return "⚠️ IA indisponível. Verifique conexão.";
+    return "⚠️ IA indisponível. Tente recarregar.";
   }
 };
 
@@ -75,10 +79,10 @@ export const generateAgentChat = async (
   
   const apiKey = getApiKey();
   if (!apiKey) {
-      throw new Error("Chave de API não configurada. Verifique o console.");
+      throw new Error("Chave de API não encontrada.");
   }
 
-  // Debug log to confirm key update
+  // Debug log para confirmar qual chave está sendo usada
   console.log(`[Agent] Using Key ending in: ...${apiKey.slice(-4)}`);
 
   const ai = new GoogleGenAI({ apiKey });
@@ -119,7 +123,7 @@ export const generateAgentChat = async (
       
       // Tratamento de erros comuns
       let errorMessage = error.message || 'Falha desconhecida';
-      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida ou expirada.';
+      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida. Google bloqueou por segurança ou expirou.';
       if (errorMessage.includes('429')) errorMessage = 'Limite de requisições excedido.';
       if (errorMessage.includes('not found')) errorMessage = `Modelo ${modelName} não encontrado.`;
 

@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   // FALLBACK DE SEGURANÇA:
-  // Se o .env não for lido corretamente, usa a chave fornecida para garantir que o app funcione.
+  // Chave atualizada para corrigir erro 403
   const apiKey = env.API_KEY || "AIzaSyCZw7K0My40AgnMQFHz-YBdKq3XlAcIjTs";
 
   console.log("---------------------------------------------------");
