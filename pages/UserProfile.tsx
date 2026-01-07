@@ -169,7 +169,17 @@ const UserProfile: React.FC = () => {
       let newStatus: 'not_started' | 'in_progress' | 'achieved' = 'in_progress';
       
       if (completed === 0) newStatus = 'not_started';
-      if (completed === total) newStatus = 'achieved';
+      
+      if (completed === total) {
+          newStatus = 'achieved';
+          // CELEBRAÇÃO QUANDO COMPLETA TUDO
+          addToast({
+              type: 'success',
+              title: 'Jornada Concluída!',
+              message: 'O cliente atingiu o resultado esperado (North Star).',
+              duration: 5000
+          });
+      }
 
       const updatedJourney: SuccessJourney = {
           ...journey,
@@ -417,7 +427,7 @@ const UserProfile: React.FC = () => {
                       </div>
 
                       <div className="h-1.5 w-full bg-black">
-                          <div className="h-full bg-neon-cyan shadow-[0_0_10px_rgba(124,252,243,0.5)] transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
+                          <div className={`h-full shadow-[0_0_10px_rgba(124,252,243,0.5)] transition-all duration-1000 ease-out ${journey.status === 'achieved' ? 'bg-neon-green' : 'bg-neon-cyan'}`} style={{ width: `${progressPercent}%` }}></div>
                       </div>
 
                       <div className="grid grid-cols-12">

@@ -50,6 +50,51 @@ const JOURNEY_TEMPLATE: JourneyStep[] = [
     { id: '5', label: 'Escala (upsell)', description: 'Contratação de novos agentes ou planos.', isCompleted: false, isAutomated: false },
 ];
 
+// Mock Journey Generator (Initial State - Deterministic)
+const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
+    // Clona o template
+    const steps = JSON.parse(JSON.stringify(JOURNEY_TEMPLATE));
+
+    // Lógica Determinística para popular o Dashboard
+    // 25% Success, 35% Advanced, 40% Mid
+    const rand = Math.abs(pseudoRandom(userId));
+
+    if (status === UserStatus.ACTIVE) {
+        if (rand < 0.25) {
+            // 25% - Resultado Atingido (Tudo completo)
+            steps.forEach((s: any) => { s.isCompleted = true; s.completedAt = '2023-10-15'; });
+        } else if (rand < 0.60) {
+            // 35% - Valor Gerado (Até passo 4)
+            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true; steps[3].isCompleted = true;
+        } else {
+            // 40% - Execução (Até passo 3)
+            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true;
+        }
+    } else if (status === UserStatus.RISK) {
+        // Risco geralmente travado no começo
+        steps[0].isCompleted = true;
+        steps[1].isCompleted = false;
+    } else if (status === UserStatus.NEW) {
+        // Novo pode ter completado o primeiro passo ou nada
+        if (rand > 0.5) steps[0].isCompleted = true;
+    } else if (status === UserStatus.CHURNED) {
+        // Churn varia
+        if (rand > 0.5) {
+             steps[0].isCompleted = true; steps[1].isCompleted = true;
+        }
+    }
+
+    const completedCount = steps.filter((s: any) => s.isCompleted).length;
+    const journeyStatus = completedCount === 0 ? 'not_started' : completedCount === 5 ? 'achieved' : 'in_progress';
+
+    return {
+        coreGoal: 'Automatizar 80% do Suporte L1',
+        status: journeyStatus,
+        steps: steps,
+        lastUpdate: new Date().toISOString()
+    };
+};
+
 // Função que mescla o estado salvo no banco (checkboxes) com os novos textos (labels)
 const mergeJourneyData = (savedJourney: SuccessJourney | undefined, userId: string, userStatus: UserStatus): SuccessJourney => {
     // Se não tem jornada salva, gera uma nova baseada no status
@@ -69,49 +114,14 @@ const mergeJourneyData = (savedJourney: SuccessJourney | undefined, userId: stri
         };
     });
 
-    return {
-        ...savedJourney,
-        steps: updatedSteps
-    };
-};
-
-// Mock Journey Generator (Initial State)
-const generateMockJourney = (status: UserStatus, userId: string = 'default'): SuccessJourney => {
-    // Clona o template
-    const steps = JSON.parse(JSON.stringify(JOURNEY_TEMPLATE));
-
-    // Adjust based on user status simulating progress
-    if (status === UserStatus.ACTIVE) {
-        const rand = pseudoRandom(userId);
-        
-        if (rand > 0.80) {
-            steps.forEach((s: any) => { s.isCompleted = true; s.completedAt = '2025-01-15' });
-        } else if (rand > 0.60) {
-            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true; steps[3].isCompleted = true;
-        } else if (rand > 0.40) {
-            steps[0].isCompleted = true; steps[1].isCompleted = true; steps[2].isCompleted = true;
-        } else if (rand > 0.20) {
-            steps[0].isCompleted = true; steps[1].isCompleted = true;
-        } else {
-            steps[0].isCompleted = true;
-        }
-    } else if (status === UserStatus.RISK) {
-        steps[0].isCompleted = true;
-        steps[1].isCompleted = false;
-    } else if (status === UserStatus.NEW) {
-        steps[0].isCompleted = Math.random() > 0.5;
-    } else {
-        steps[0].isCompleted = true;
-    }
-
-    const completedCount = steps.filter((s: any) => s.isCompleted).length;
+    // Recalcula o status geral baseado nos passos mesclados
+    const completedCount = updatedSteps.filter(s => s.isCompleted).length;
     const journeyStatus = completedCount === 0 ? 'not_started' : completedCount === 5 ? 'achieved' : 'in_progress';
 
     return {
-        coreGoal: 'Automatizar 80% do Suporte L1',
-        status: journeyStatus,
-        steps: steps,
-        lastUpdate: new Date().toISOString()
+        ...savedJourney,
+        steps: updatedSteps,
+        status: journeyStatus // Garante que o status global esteja sincronizado
     };
 };
 
@@ -246,7 +256,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           timestamp: new Date().toLocaleString('pt-BR')
       }];
 
-      // Mock journey for initial creation
+      // Mock journey for initial creation (New user usually starts fresh)
       const mockJourney = generateMockJourney(userData.status || UserStatus.NEW, Date.now().toString());
 
       const metricsWithData = {
