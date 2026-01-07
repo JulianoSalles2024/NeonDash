@@ -12,9 +12,9 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target, ArrowRight, AlertCircle, Lightbulb } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
-import RetentionEvolutionChart from '../components/Charts/RetentionEvolutionChart';
+// RetentionChart removed from Dashboard to keep only in Retention page
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'focus'>('overview');
@@ -38,9 +38,73 @@ const Dashboard: React.FC = () => {
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
 
-  // Journey Status Stats
-  // FIX: Allow Test Users here so the visual bars update during testing
-  // Only exclude users who have already churned (lost)
+  // --- JOURNEY FRICTION LOGIC (NEW) ---
+  const frictionStats = useMemo(() => {
+      const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
+      const total = activeBase.length || 1;
+      
+      const counts = { activation: 0, method: 0, execution: 0, value: 0 };
+
+      activeBase.forEach(u => {
+          const steps = u.journey?.steps || [];
+          const completed = steps.filter(s => s.isCompleted).length;
+          
+          // Mapeamento de ONDE o usuário está PARADO (Gargalo Atual)
+          if (completed === 0) counts.activation++; // Está tentando ativar
+          else if (completed === 1) counts.method++; // Ativou, está no método
+          else if (completed === 2) counts.execution++; // Método ok, está executando
+          else if (completed === 3) counts.value++; // Executando, buscando valor
+          // 4+ seria Sucesso/Escala, não entra no diagnóstico de problema
+      });
+
+      return [
+          { 
+              id: 'activation', 
+              label: 'Ativação', 
+              insight: 'Problema de Onboarding', 
+              desc: 'Usuários presos na etapa inicial.',
+              count: counts.activation, 
+              percent: (counts.activation / total) * 100,
+              color: 'text-red-400', 
+              bg: 'bg-red-500', 
+              border: 'border-red-500/30'
+          },
+          { 
+              id: 'method', 
+              label: 'Método', 
+              insight: 'Clareza / Setup', 
+              desc: 'Dificuldade em entender a metodologia.',
+              count: counts.method, 
+              percent: (counts.method / total) * 100,
+              color: 'text-orange-400', 
+              bg: 'bg-orange-500', 
+              border: 'border-orange-500/30'
+          },
+          { 
+              id: 'execution', 
+              label: 'Execução', 
+              insight: 'Sucesso Parcial', 
+              desc: 'Sistema configurado, mas uso baixo.',
+              count: counts.execution, 
+              percent: (counts.execution / total) * 100,
+              color: 'text-blue-400', 
+              bg: 'bg-blue-500', 
+              border: 'border-blue-500/30'
+          },
+          { 
+              id: 'value', 
+              label: 'Valor', 
+              insight: 'Prova de Produto', 
+              desc: 'Falta confirmar ROI para escalar.',
+              count: counts.value, 
+              percent: (counts.value / total) * 100,
+              color: 'text-neon-green', 
+              bg: 'bg-neon-green', 
+              border: 'border-neon-green/30'
+          }
+      ];
+  }, [users]);
+
   const journeyStats = useMemo(() => {
       const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length || 1;
@@ -197,17 +261,14 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* --- BOTTOM ROW --- */}
-            {/* Journey Distribution */}
-            <Card className="col-span-1 md:col-span-2 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
+            {/* Journey Distribution (Left) */}
+            <Card className="col-span-1 md:col-span-1 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
                 <div className="flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
                             <Target size={20} className="text-neon-cyan" /> Sucesso do Cliente
                         </h3>
-                        <p className="text-xs text-gray-400 mt-1">Distribuição da base por etapa da Jornada de Valor.</p>
-                    </div>
-                    <div className="p-2 bg-white/5 rounded-lg text-neon-cyan">
-                        <Flag size={20} />
+                        <p className="text-xs text-gray-400 mt-1">Status global.</p>
                     </div>
                 </div>
 
@@ -215,7 +276,7 @@ const Dashboard: React.FC = () => {
                     {/* Achieved */}
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-white font-medium">Resultado Atingido (Success)</span>
+                            <span className="text-white font-medium">Resultado Atingido</span>
                             <span className="text-neon-green font-bold text-base">{journeyStats.achieved.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
@@ -226,7 +287,7 @@ const Dashboard: React.FC = () => {
                     {/* In Progress */}
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-gray-300">Em Progresso (Onboarding)</span>
+                            <span className="text-gray-300">Em Progresso</span>
                             <span className="text-neon-blue font-bold text-base">{journeyStats.inProgress.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
@@ -237,7 +298,7 @@ const Dashboard: React.FC = () => {
                     {/* Not Started */}
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-gray-500">Não Iniciado / Setup</span>
+                            <span className="text-gray-500">Setup</span>
                             <span className="text-gray-400 font-bold text-base">{journeyStats.notStarted.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
@@ -247,12 +308,61 @@ const Dashboard: React.FC = () => {
                 </div>
             </Card>
 
-            {/* Retention Chart on Dashboard */}
-            <div className="col-span-1 md:col-span-2">
-                <RetentionEvolutionChart 
-                    onClick={() => navigate('/retention')}
-                    className="cursor-pointer hover:border-white/20 transition-all border border-white/5 h-full"
-                />
+            {/* --- NEW: DIAGNÓSTICO DE FRICÇÃO (Replacement) --- */}
+            <div className="col-span-1 md:col-span-3">
+                <Card className="h-full flex flex-col justify-center border-white/5 bg-white/[0.01]">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-white/5 rounded-lg text-white">
+                            <Lightbulb size={20} className="text-yellow-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Diagnóstico de Fricção</h3>
+                            <p className="text-xs text-gray-500">Análise de gargalos por etapa da jornada.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {frictionStats.map((stat, idx) => (
+                            <div key={stat.id} className="relative flex flex-col group">
+                                {/* Connector Line */}
+                                {idx < frictionStats.length - 1 && (
+                                    <div className="hidden md:block absolute top-1/2 -right-6 w-8 h-0.5 bg-white/10 -translate-y-1/2 z-0">
+                                        <div className="absolute right-0 -top-1 text-white/10"><ArrowRight size={12} /></div>
+                                    </div>
+                                )}
+
+                                <div className={`
+                                    relative z-10 p-4 rounded-xl border bg-[#0B0F1A] hover:-translate-y-1 transition-all duration-300 h-full flex flex-col justify-between
+                                    ${stat.border}
+                                `}>
+                                    <div>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className={`text-xs font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</span>
+                                            {stat.count > 0 && <AlertCircle size={14} className={stat.color} />}
+                                        </div>
+                                        <p className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                                            {stat.insight}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 leading-tight mb-4">{stat.desc}</p>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex items-end gap-2 mb-2">
+                                            <span className="text-2xl font-display font-bold text-white">{stat.count}</span>
+                                            <span className="text-xs text-gray-500 mb-1">usuários</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full ${stat.bg} shadow-[0_0_8px_rgba(0,0,0,0.5)] transition-all duration-1000`} 
+                                                style={{ width: `${Math.max(5, stat.percent)}%` }} // Min 5% visual
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
             </div>
 
         </motion.div>
