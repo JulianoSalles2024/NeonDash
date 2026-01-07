@@ -31,6 +31,7 @@ const UserProfile: React.FC = () => {
 
   // Derived State for Alerts
   const [daysStagnant, setDaysStagnant] = useState(0);
+  const [daysInactive, setDaysInactive] = useState(0);
 
   useEffect(() => {
       if (user?.journey?.coreGoal) {
@@ -38,7 +39,7 @@ const UserProfile: React.FC = () => {
       }
   }, [user]);
 
-  // --- AI ANALYSIS TRIGGER ---
+  // --- AI ANALYSIS & STAGNATION CALCULATION ---
   useEffect(() => {
       const runAnalysis = async () => {
           if (activeTab === 'journey' && user && user.journey) {
@@ -46,8 +47,21 @@ const UserProfile: React.FC = () => {
               
               const now = new Date();
               const joinedAt = user.joinedAt ? new Date(user.joinedAt) : new Date();
-              const daysSinceJoined = Math.max(0, Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 3600 * 24)));
               
+              // 1. Calculate Days Since Last Active (Inactivity)
+              let lastActiveDate = joinedAt;
+              if (user.lastActive && user.lastActive !== 'Nunca' && user.lastActive !== 'Agora') {
+                  // Try parsing ISO first
+                  const parsed = new Date(user.lastActive);
+                  if (!isNaN(parsed.getTime())) {
+                      lastActiveDate = parsed;
+                  }
+              }
+              const calcDaysInactive = Math.max(0, Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 3600 * 24)));
+              setDaysInactive(calcDaysInactive);
+
+              // 2. Calculate Days Stagnant in Journey Step
+              const daysSinceJoined = Math.max(0, Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 3600 * 24)));
               const completedSteps = user.journey.steps.filter(s => s.isCompleted);
               const nextStep = user.journey.steps.find(s => !s.isCompleted);
               
@@ -58,6 +72,7 @@ const UserProfile: React.FC = () => {
                   const lastDate = lastCompleted.completedAt ? new Date(lastCompleted.completedAt) : joinedAt;
                   calcDaysStagnant = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 3600 * 24)));
               } else {
+                  // Se não completou nada, o tempo estagnado é o tempo desde que entrou
                   calcDaysStagnant = daysSinceJoined;
               }
               
@@ -155,8 +170,23 @@ const UserProfile: React.FC = () => {
   const stepsCompleted = journey.steps.filter(s => s.isCompleted).length;
   const progressPercent = journey.steps.length > 0 ? (stepsCompleted / journey.steps.length) * 100 : 0;
 
-  // LOGIC: Stagnation Alert (Threshold 15 days OR if User is marked as Risk)
-  const isStagnant = (daysStagnant > 15 || user.status === UserStatus.RISK) && journey.status === 'in_progress';
+  // --- REFINED ALERT LOGIC ---
+  // 1. Is Risk Status?
+  const isRiskStatus = user.status === UserStatus.RISK;
+  
+  // 2. No Progress + Inactive > 10 days
+  const isInactiveNoStart = stepsCompleted === 0 && daysInactive > 10;
+
+  // 3. Started but Stagnant > 15 days
+  const isStagnantInProgress = stepsCompleted > 0 && daysStagnant > 15 && journey.status === 'in_progress';
+
+  const showStagnationAlert = isRiskStatus || isInactiveNoStart || isStagnantInProgress;
+
+  // Determine the display number and message
+  const alertDays = isInactiveNoStart ? daysInactive : daysStagnant;
+  const alertMessage = isInactiveNoStart 
+      ? `Sem ativação inicial e inativo há ${daysInactive} dias.` 
+      : `Este cliente não avança na jornada há ${daysStagnant} dias.`;
 
   // LOGIC: Social Proof Candidate
   // Rule: High Health Score (> 70) AND (Finished "Value Generated" step OR Finished Journey)
@@ -416,7 +446,7 @@ const UserProfile: React.FC = () => {
                   
                   {/* --- SMART ALERTS SECTION (NEW) --- */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      {isStagnant && (
+                      {showStagnationAlert && (
                           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
                               <div className="p-2 bg-red-500/20 rounded-lg text-red-400 shrink-0">
                                   <Timer size={20} />
@@ -426,7 +456,7 @@ const UserProfile: React.FC = () => {
                                       Alerta de Estagnação
                                   </h4>
                                   <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                                      Este cliente não avança na jornada há <span className="font-mono font-bold text-white bg-red-500/20 px-1 rounded">{daysStagnant} dias</span>.
+                                      {alertMessage}
                                       <br/>Recomendamos intervenção manual (Call/Email).
                                   </p>
                               </div>
