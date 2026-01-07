@@ -48,7 +48,7 @@ const UserProfile: React.FC = () => {
               const now = new Date();
               const joinedAt = user.joinedAt ? new Date(user.joinedAt) : new Date();
               
-              // 1. Calculate Days Since Last Active (Inactivity)
+              // 1. Calculate Days Since Last Active (Inactivity - Platform Access)
               let lastActiveDate = joinedAt;
               if (user.lastActive && user.lastActive !== 'Nunca' && user.lastActive !== 'Agora') {
                   // Try parsing ISO first
@@ -57,10 +57,11 @@ const UserProfile: React.FC = () => {
                       lastActiveDate = parsed;
                   }
               }
-              const calcDaysInactive = Math.max(0, Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 3600 * 24)));
+              // Force 0 if 'Agora', otherwise calc diff
+              const calcDaysInactive = user.lastActive === 'Agora' ? 0 : Math.max(0, Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 3600 * 24)));
               setDaysInactive(calcDaysInactive);
 
-              // 2. Calculate Days Stagnant in Journey Step
+              // 2. Calculate Days Stagnant in Journey Step (Progress)
               const daysSinceJoined = Math.max(0, Math.floor((now.getTime() - joinedAt.getTime()) / (1000 * 3600 * 24)));
               const completedSteps = user.journey.steps.filter(s => s.isCompleted);
               const nextStep = user.journey.steps.find(s => !s.isCompleted);
@@ -69,6 +70,7 @@ const UserProfile: React.FC = () => {
               
               if (completedSteps.length > 0) {
                   const lastCompleted = completedSteps[completedSteps.length - 1];
+                  // Se completedAt não existir (legado), usa joinedAt como fallback
                   const lastDate = lastCompleted.completedAt ? new Date(lastCompleted.completedAt) : joinedAt;
                   calcDaysStagnant = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 3600 * 24)));
               } else {
@@ -171,22 +173,31 @@ const UserProfile: React.FC = () => {
   const progressPercent = journey.steps.length > 0 ? (stepsCompleted / journey.steps.length) * 100 : 0;
 
   // --- REFINED ALERT LOGIC ---
-  // 1. Is Risk Status?
+  // 1. Is Risk Status? (Manual Override)
   const isRiskStatus = user.status === UserStatus.RISK;
   
-  // 2. No Progress + Inactive > 10 days
-  const isInactiveNoStart = stepsCompleted === 0 && daysInactive > 10;
+  // 2. High Inactivity (Priority Rule: > 10 days without access triggers alert REGARDLESS of journey updates)
+  const isHighInactivity = daysInactive > 10;
 
-  // 3. Started but Stagnant > 15 days
-  const isStagnantInProgress = stepsCompleted > 0 && daysStagnant > 15 && journey.status === 'in_progress';
+  // 3. Journey Stagnation (Only if active but stuck on a step)
+  const isJourneyStalled = !isHighInactivity && daysStagnant > 15 && journey.status === 'in_progress';
 
-  const showStagnationAlert = isRiskStatus || isInactiveNoStart || isStagnantInProgress;
+  const showStagnationAlert = isRiskStatus || isHighInactivity || isJourneyStalled;
 
-  // Determine the display number and message
-  const alertDays = isInactiveNoStart ? daysInactive : daysStagnant;
-  const alertMessage = isInactiveNoStart 
-      ? `Sem ativação inicial e inativo há ${daysInactive} dias.` 
-      : `Este cliente não avança na jornada há ${daysStagnant} dias.`;
+  // Determine Message
+  let alertMessage = '';
+  let alertTitle = 'Alerta de Estagnação';
+
+  if (isRiskStatus) {
+      alertTitle = 'Risco Detectado';
+      alertMessage = "Cliente marcado manualmente como 'Risco'. Requer atenção imediata.";
+  } else if (isHighInactivity) {
+      alertTitle = 'Alerta de Inatividade';
+      alertMessage = `Cliente sem acesso à plataforma há ${daysInactive} dias, independente do progresso na jornada.`;
+  } else {
+      alertTitle = 'Estagnação de Jornada';
+      alertMessage = `Este cliente acessa a plataforma, mas não avança na etapa atual há ${daysStagnant} dias.`;
+  }
 
   // LOGIC: Social Proof Candidate
   // Rule: High Health Score (> 70) AND (Finished "Value Generated" step OR Finished Journey)
@@ -453,7 +464,7 @@ const UserProfile: React.FC = () => {
                               </div>
                               <div>
                                   <h4 className="text-sm font-bold text-red-400 uppercase tracking-wide flex items-center gap-2">
-                                      Alerta de Estagnação
+                                      {alertTitle}
                                   </h4>
                                   <p className="text-xs text-gray-300 mt-1 leading-relaxed">
                                       {alertMessage}
