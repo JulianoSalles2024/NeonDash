@@ -39,8 +39,9 @@ const Dashboard: React.FC = () => {
   const revenueUsers = users.filter(u => !u.isTest);
 
   // Journey Status Stats
+  // FIX: Allow Test Users here so the visual bars update during testing
   const journeyStats = useMemo(() => {
-      const activeBase = users.filter(u => !u.isTest && u.status !== UserStatus.CHURNED);
+      const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length || 1;
       
       const achieved = activeBase.filter(u => u.journey?.status === 'achieved').length;
