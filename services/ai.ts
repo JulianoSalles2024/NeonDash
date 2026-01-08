@@ -1,16 +1,26 @@
-import { GoogleGenAI } from "@google/genai";
 import { AgentChatResponse } from '../types';
 
-// CHAVE DE EMERGÊNCIA - Substitua abaixo pela sua nova chave se o .env falhar
-const EMERGENCY_API_KEY = "AIzaSyBKOhfEc3HgWAaJ6KNwntXcDxgiAaBboww"; // <--- COLOQUE SUA NOVA API KEY AQUI PARA TESTE RÁPIDO
+// Helper function to call our secure backend proxy
+const callAIProxy = async (payload: any) => {
+    try {
+        const response = await fetch('/api/ai-proxy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
 
-const getApiKey = () => {
-  const key = process.env.API_KEY || EMERGENCY_API_KEY;
-  if (!key || key.includes("undefined") || key === "") {
-    console.error("CRITICAL ERROR: API Key is missing.");
-    return null;
-  }
-  return key;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server Error: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("AI Service Error:", error);
+        throw error;
+    }
 };
 
 const getGeminiModelName = (uiModel: string) => {
@@ -23,25 +33,20 @@ const getGeminiModelName = (uiModel: string) => {
 
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
-    const apiKey = getApiKey();
-    if (!apiKey) return "⚠️ Configuração incompleta da API. Adicione sua chave no arquivo services/ai.ts ou .env";
-
-    const ai = new GoogleGenAI({ apiKey });
-    
-    const response = await ai.models.generateContent({
+    const result = await callAIProxy({
         model: 'gemini-3-flash-preview',
-        contents: metricsSummary,
+        contents: [{ role: 'user', parts: [{ text: metricsSummary }] }],
         config: {
             systemInstruction: 'Você é um analista de dados SaaS experiente. Analise o contexto fornecido e gere UM ÚNICO insight curto (máximo 1 frase) e acionável. Foque em tendências, riscos ou oportunidades. Use emojis.',
             temperature: 0.7
         }
     });
 
-    return response.text || "Sem insights disponíveis.";
+    return result.text || "Sem insights disponíveis.";
 
   } catch (error) {
     console.warn("AI Insight Error:", error);
-    return "⚠️ IA indisponível. Verifique sua chave de API.";
+    return "⚠️ IA indisponível. Verifique conexão.";
   }
 };
 
@@ -53,11 +58,6 @@ export const analyzeJourney = async (
     completedSteps: string[]
 ): Promise<string> => {
     try {
-        const apiKey = getApiKey();
-        if (!apiKey) return "⚠️ Configuração incompleta da API.";
-
-        const ai = new GoogleGenAI({ apiKey });
-
         const prompt = `
             Analise a jornada do cliente SaaS "${userName}" para identificar gargalos ou sucessos.
             
@@ -75,15 +75,15 @@ export const analyzeJourney = async (
             Seja curto (máximo 2 frases). Direto ao ponto.
         `;
         
-        const response = await ai.models.generateContent({
+        const result = await callAIProxy({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: 0.4 
             }
         });
 
-        return response.text || "Análise indisponível no momento.";
+        return result.text || "Análise indisponível no momento.";
 
     } catch (error) {
         console.error("AI Journey Analysis Error:", error);
@@ -99,12 +99,6 @@ export const generateAgentChat = async (
   newMessage: string
 ): Promise<AgentChatResponse> => {
   
-  const apiKey = getApiKey();
-  if (!apiKey) {
-      throw new Error("Chave de API não configurada. Adicione no arquivo .env ou services/ai.ts");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
   const modelName = getGeminiModelName(uiModelName);
 
   const contents = history.map((msg) => ({
@@ -118,7 +112,7 @@ export const generateAgentChat = async (
   });
 
   try {
-      const response = await ai.models.generateContent({
+      const result = await callAIProxy({
         model: modelName,
         contents: contents,
         config: {
@@ -128,20 +122,11 @@ export const generateAgentChat = async (
       });
 
       return {
-        text: response.text || "O modelo não retornou texto.",
-        usage: {
-          totalTokens: response.usageMetadata?.totalTokenCount || 0,
-          promptTokens: response.usageMetadata?.promptTokenCount || 0,
-          responseTokens: response.usageMetadata?.candidatesTokenCount || 0
-        }
+        text: result.text || "O modelo não retornou texto.",
+        usage: result.usage || { totalTokens: 0, promptTokens: 0, responseTokens: 0 }
       };
   } catch (error: any) {
       console.error("Agent Execution Error Details:", error);
-      let errorMessage = error.message || 'Falha desconhecida';
-      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida ou bloqueada pelo Google.';
-      if (errorMessage.includes('429')) errorMessage = 'Limite de requisições excedido.';
-      if (errorMessage.includes('not found')) errorMessage = `Modelo ${modelName} não encontrado.`;
-
-      throw new Error(`Erro na IA: ${errorMessage}`);
+      throw new Error(`Erro na IA: ${error.message || 'Falha de comunicação com o servidor'}`);
   }
 };

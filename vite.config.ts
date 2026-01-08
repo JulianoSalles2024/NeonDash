@@ -5,28 +5,31 @@ export default defineConfig(({ mode }) => {
   // Carrega variáveis de ambiente do diretório atual
   const env = loadEnv(mode, (process as any).cwd(), '');
 
-  // FALLBACK DE SEGURANÇA:
-  // A chave anterior foi revogada. Insira sua nova chave abaixo se não estiver usando .env
-  const apiKey = env.API_KEY || "AIzaSyBKOhfEc3HgWAaJ6KNwntXcDxgiAaBboww"; // <--- INSIRA SUA NOVA CHAVE AQUI ENTRE AS ASPAS SE NECESSÁRIO
-
   console.log("---------------------------------------------------");
   console.log("NEONDASH BUILD CONFIG:");
   console.log("Mode:", mode);
-  console.log("API Key Detected:", apiKey ? "YES (Ends with ... " + apiKey.slice(-4) + ")" : "NO");
+  console.log("Security:", "API Key injection REMOVED. Using Server-Side Proxy.");
   console.log("---------------------------------------------------");
 
   return {
     plugins: [react()],
     define: {
-      // Injeta a chave diretamente no código compilado
-      'process.env.API_KEY': JSON.stringify(apiKey),
+      // NÃO injetamos mais a API_KEY aqui para evitar vazamento no navegador
+      // A comunicação agora será via endpoint /api/ai-proxy
     },
     build: {
       outDir: 'dist',
-      sourcemap: true // Habilitado para melhor debug
+      sourcemap: true
     },
     server: {
       port: 3000,
+      proxy: {
+        // Redireciona chamadas locais de /api para as functions (em dev)
+        '/api': {
+          target: 'http://localhost:3000', // Ajuste conforme seu ambiente de dev serverless se necessário
+          changeOrigin: true,
+        }
+      }
     }
   };
 });
