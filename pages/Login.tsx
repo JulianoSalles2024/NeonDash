@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react';
+import { Mail, ArrowRight, ShieldCheck, UserPlus, AlertTriangle, FileText, Copy } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useToastStore } from '../store/useToastStore';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -12,9 +13,17 @@ const Login: React.FC = () => {
   
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfigHelp, setShowConfigHelp] = useState(!isSupabaseConfigured());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificação de segurança antes de tentar login
+    if (!isSupabaseConfigured()) {
+        setShowConfigHelp(true);
+        return;
+    }
+
     if (!email) {
         addToast({ type: 'error', title: 'Erro', message: 'Por favor, informe seu email.' });
         return;
@@ -23,7 +32,6 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-        // Aguarda a resposta real do Supabase
         const success = await login(email);
 
         if (success) {
@@ -33,13 +41,12 @@ const Login: React.FC = () => {
                 message: 'Bem-vindo de volta ao Mission Control.',
                 duration: 3000
             });
-            // Redireciona apenas se o login for bem-sucedido
             navigate('/');
         } else {
             addToast({
                 type: 'error',
                 title: 'Falha no Acesso',
-                message: 'Verifique se o email está correto ou se o cadastro foi realizado.',
+                message: 'Verifique se o email está correto ou se a chave de API está configurada.',
             });
         }
     } catch (error) {
@@ -51,6 +58,12 @@ const Login: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const copyEnvExample = () => {
+      const text = `VITE_SUPABASE_URL=https://mzxczamhulpsvswojsod.supabase.co\nVITE_SUPABASE_ANON_KEY=Sua_Chave_Anon_Aqui\nAPI_KEY=Sua_Chave_Gemini_Aqui`;
+      navigator.clipboard.writeText(text);
+      addToast({ type: 'success', title: 'Copiado!', message: 'Exemplo de .env copiado.' });
   };
 
   return (
@@ -85,6 +98,24 @@ const Login: React.FC = () => {
                     <h1 className="text-3xl font-display font-bold text-white tracking-wider mb-2">NEON<span className="text-neon-cyan">DASH</span></h1>
                     <p className="text-gray-500 text-sm tracking-widest uppercase">Identificação Requerida</p>
                 </div>
+
+                {showConfigHelp ? (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 mb-2 text-yellow-500 font-bold text-sm uppercase tracking-wide">
+                            <AlertTriangle size={16} /> Configuração Pendente
+                        </div>
+                        <p className="text-xs text-gray-300 mb-3 leading-relaxed">
+                            Para segurança, as chaves foram removidas do código. Você precisa criar um arquivo 
+                            <code className="bg-black/30 px-1 py-0.5 rounded text-white mx-1">.env</code> na raiz do projeto.
+                        </p>
+                        <button 
+                            onClick={copyEnvExample}
+                            className="w-full flex items-center justify-center gap-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 text-xs font-mono py-2 rounded border border-yellow-500/30 transition-colors"
+                        >
+                            <Copy size={12} /> Copiar Modelo .env
+                        </button>
+                    </div>
+                ) : null}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2 group/input">
@@ -144,7 +175,7 @@ const Login: React.FC = () => {
             
             {/* Footer */}
             <p className="text-center text-xs text-gray-600 mt-8 font-mono">
-                SYSTEM VERSION 2.4.0 // UNAUTHORIZED ACCESS PROHIBITED
+                SYSTEM VERSION 2.4.1 // SECURE ENVIRONMENT
             </p>
         </motion.div>
     </div>
