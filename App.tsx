@@ -32,23 +32,35 @@ const App: React.FC = () => {
     // 1. Verificar sessão atual ao carregar
     const initSession = async () => {
         setIsCheckingAuth(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-            setUser({
-                id: session.user.id,
-                email: session.user.email!,
-                name: session.user.user_metadata.name || 'Admin',
-                company: session.user.user_metadata.company || 'Neon HQ',
-                role: session.user.user_metadata.role || 'admin'
-            });
-            // Carregar dados iniciais em background
-            fetchUsers();
-            fetchAgents();
-        } else {
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            
+            if (error) {
+                console.warn("Erro ao verificar sessão (possível falta de configuração):", error.message);
+                setUser(null);
+                return;
+            }
+
+            if (data?.session?.user) {
+                setUser({
+                    id: data.session.user.id,
+                    email: data.session.user.email!,
+                    name: data.session.user.user_metadata.name || 'Admin',
+                    company: data.session.user.user_metadata.company || 'Neon HQ',
+                    role: data.session.user.user_metadata.role || 'admin'
+                });
+                // Carregar dados iniciais em background
+                fetchUsers();
+                fetchAgents();
+            } else {
+                setUser(null);
+            }
+        } catch (err) {
+            console.error("Falha crítica na inicialização:", err);
             setUser(null);
+        } finally {
+            setIsCheckingAuth(false);
         }
-        setIsCheckingAuth(false);
     };
 
     initSession();

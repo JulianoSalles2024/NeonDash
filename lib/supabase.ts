@@ -1,18 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Cast import.meta to any to avoid TypeScript errors when vite types are not loaded
-const env = (import.meta as any).env;
+// Função auxiliar para acessar variáveis de ambiente de forma segura
+// Evita o erro: Cannot read properties of undefined (reading 'VITE_SUPABASE_URL')
+const getEnv = (key: string) => {
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    // @ts-ignore
+    return import.meta.env[key];
+  }
+  return undefined;
+};
 
-const supabaseUrl = env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Supabase URL ou Anon Key não configurados. Verifique seu arquivo .env');
 }
 
-// Fallback to prevent crash if keys are missing (development/setup phase)
-// Using a valid URL format to satisfy the constructor validation
-const url = supabaseUrl || 'https://placeholder.supabase.co';
+// Fallback para evitar crash imediato se as chaves estiverem faltando
+// Usamos um domínio fictício válido para evitar erros de DNS se a URL for undefined
+const url = supabaseUrl && supabaseUrl.startsWith('http') ? supabaseUrl : 'https://placeholder.supabase.co';
 const key = supabaseAnonKey || 'placeholder-key';
 
 export const supabase = createClient(url, key);
