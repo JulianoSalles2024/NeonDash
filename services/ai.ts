@@ -1,12 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { AgentChatResponse } from '../types';
 
-// CHAVE DE EMERGÊNCIA - Atualizada para o usuário
-const EMERGENCY_API_KEY = "AIzaSyCZw7K0My40AgnMQFHz-YBdKq3XlAcIjTs";
+// CHAVE DE EMERGÊNCIA - Substitua abaixo pela sua nova chave se o .env falhar
+const EMERGENCY_API_KEY = "AIzaSyBKOhfEc3HgWAaJ6KNwntXcDxgiAaBboww"; // <--- COLOQUE SUA NOVA API KEY AQUI PARA TESTE RÁPIDO
 
 const getApiKey = () => {
   const key = process.env.API_KEY || EMERGENCY_API_KEY;
-  if (!key || key.includes("undefined")) {
+  if (!key || key.includes("undefined") || key === "") {
     console.error("CRITICAL ERROR: API Key is missing.");
     return null;
   }
@@ -24,7 +24,7 @@ const getGeminiModelName = (uiModel: string) => {
 export const generateDashboardInsight = async (metricsSummary: string): Promise<string> => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return "⚠️ Configuração incompleta da API.";
+    if (!apiKey) return "⚠️ Configuração incompleta da API. Adicione sua chave no arquivo services/ai.ts ou .env";
 
     const ai = new GoogleGenAI({ apiKey });
     
@@ -41,7 +41,7 @@ export const generateDashboardInsight = async (metricsSummary: string): Promise<
 
   } catch (error) {
     console.warn("AI Insight Error:", error);
-    return "⚠️ IA indisponível. Tente recarregar.";
+    return "⚠️ IA indisponível. Verifique sua chave de API.";
   }
 };
 
@@ -101,7 +101,7 @@ export const generateAgentChat = async (
   
   const apiKey = getApiKey();
   if (!apiKey) {
-      throw new Error("Chave de API não encontrada.");
+      throw new Error("Chave de API não configurada. Adicione no arquivo .env ou services/ai.ts");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -138,7 +138,7 @@ export const generateAgentChat = async (
   } catch (error: any) {
       console.error("Agent Execution Error Details:", error);
       let errorMessage = error.message || 'Falha desconhecida';
-      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida ou expirada.';
+      if (errorMessage.includes('403')) errorMessage = 'Chave de API inválida ou bloqueada pelo Google.';
       if (errorMessage.includes('429')) errorMessage = 'Limite de requisições excedido.';
       if (errorMessage.includes('not found')) errorMessage = `Modelo ${modelName} não encontrado.`;
 

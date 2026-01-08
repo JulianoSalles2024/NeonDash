@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   // FALLBACK DE SEGURANÇA:
-  // Chave atualizada para corrigir erro 403
-  const apiKey = env.API_KEY || "AIzaSyCZw7K0My40AgnMQFHz-YBdKq3XlAcIjTs";
+  // A chave anterior foi revogada. Insira sua nova chave abaixo se não estiver usando .env
+  const apiKey = env.API_KEY || "AIzaSyBKOhfEc3HgWAaJ6KNwntXcDxgiAaBboww"; // <--- INSIRA SUA NOVA CHAVE AQUI ENTRE AS ASPAS SE NECESSÁRIO
 
   console.log("---------------------------------------------------");
   console.log("NEONDASH BUILD CONFIG:");
