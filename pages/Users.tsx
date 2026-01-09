@@ -4,7 +4,7 @@ import Badge from '../components/ui/Badge';
 import { User, UserStatus, SuccessJourney } from '../types';
 import { useUserStore } from '../store/useUserStore';
 import { useUsersViewStore, SortKey, SortConfig } from '../store/useUsersViewStore';
-import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database, Flag, Target, Layout, CheckSquare } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, X, Check, AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown, Users, Zap, CreditCard, ChevronLeft, ChevronRight, FlaskConical, Calendar, Loader2, Clock, Database, Flag, Target, Layout, CheckSquare, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToastStore } from '../store/useToastStore';
 
@@ -212,6 +212,10 @@ const UsersPage: React.FC = () => {
       }
   };
 
+  const handlePrint = () => {
+      window.print();
+  };
+
   const handleExportCSV = () => {
       // Create CSV content
       const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Entrada', 'Teste'];
@@ -409,7 +413,8 @@ const UsersPage: React.FC = () => {
   }
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto relative">
+    <>
+    <div className="p-8 max-w-[1600px] mx-auto relative print:hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 className="text-3xl font-bold font-display text-white">Usuários</h1>
@@ -433,6 +438,12 @@ const UsersPage: React.FC = () => {
                     className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
                 >
                     <Download size={16} /> CSV
+                </button>
+                <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                    <Printer size={16} /> PDF
                 </button>
                 <button 
                     onClick={handleAddNew}
@@ -953,6 +964,85 @@ const UsersPage: React.FC = () => {
              </div>
         )}
     </div>
+
+    {/* --- PRINT ONLY LAYOUT (Relatório Geral) --- */}
+    <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 overflow-y-auto text-black">
+        <div className="text-center mb-8 border-b-2 border-black pb-4">
+            <h1 className="text-3xl font-bold uppercase tracking-wider">Relatório de Base de Clientes</h1>
+            <p className="text-gray-600 mt-2">
+                Gerado em {new Date().toLocaleDateString()} • {filteredUsers.length} registros
+            </p>
+        </div>
+
+        <div className="space-y-8">
+            {filteredUsers.map((u, index) => (
+                <div key={u.id} className="break-inside-avoid border border-gray-300 rounded-lg p-6 bg-gray-50 mb-6">
+                    {/* Header info */}
+                    <div className="flex justify-between items-start mb-4 border-b border-gray-200 pb-4">
+                        <div>
+                            <h2 className="text-xl font-bold">{u.name}</h2>
+                            <p className="text-sm text-gray-600">{u.company} • {u.email}</p>
+                        </div>
+                        <div className="text-right">
+                            <span className="inline-block px-2 py-1 border border-black rounded text-xs font-bold uppercase mb-1">
+                                {u.status}
+                            </span>
+                            <p className="text-xs text-gray-500">ID: {u.id.slice(0,8)}</p>
+                        </div>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase font-bold">Plano</p>
+                            <p className="font-semibold">{u.plan}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase font-bold">MRR</p>
+                            <p className="font-semibold">R$ {u.mrr.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase font-bold">Health Score</p>
+                            <p className="font-semibold">{u.healthScore}/100</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-500 text-xs uppercase font-bold">Entrada</p>
+                            <p className="font-semibold">{new Date(u.joinedAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+
+                    {/* Journey Steps Compact */}
+                    <div className="bg-white border border-gray-200 rounded p-4">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                            <Flag size={12}/> Detalhes da Jornada
+                        </p>
+                        {u.journey ? (
+                            <div className="space-y-2">
+                                <p className="text-sm font-bold mb-2">Objetivo: {u.journey.coreGoal}</p>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {u.journey.steps.map((step, sIdx) => (
+                                        <div key={sIdx} className={`text-center p-2 rounded border ${step.isCompleted ? 'bg-gray-100 border-gray-400' : 'border-gray-100'}`}>
+                                            <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${step.isCompleted ? 'bg-black' : 'bg-gray-200'}`}></div>
+                                            <p className={`text-[9px] uppercase leading-tight ${step.isCompleted ? 'font-bold text-black' : 'text-gray-400'}`}>
+                                                {step.label} 
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic">Jornada não iniciada.</p>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+        
+        <div className="mt-8 text-center text-xs text-gray-400 border-t pt-4">
+            Fim do Relatório • NEONDASH
+        </div>
+    </div>
+    </>
   );
 };
 
