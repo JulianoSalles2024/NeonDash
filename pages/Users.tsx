@@ -966,7 +966,7 @@ const UsersPage: React.FC = () => {
     </div>
 
     {/* --- PRINT ONLY LAYOUT (Relatório Geral) --- */}
-    <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8 overflow-y-auto text-black">
+    <div className="hidden print:block absolute top-0 left-0 w-full h-auto bg-white z-[9999] p-8 text-black">
         <div className="text-center mb-8 border-b-2 border-black pb-4">
             <h1 className="text-3xl font-bold uppercase tracking-wider">Relatório de Base de Clientes</h1>
             <p className="text-gray-600 mt-2">
@@ -974,11 +974,11 @@ const UsersPage: React.FC = () => {
             </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
             {filteredUsers.map((u, index) => (
-                <div key={u.id} className="break-inside-avoid border border-gray-300 rounded-lg p-6 bg-gray-50 mb-6">
+                <div key={u.id} className="break-inside-avoid page-break-inside-avoid border border-gray-300 rounded-lg p-5 bg-gray-50 mb-4 shadow-none">
                     {/* Header info */}
-                    <div className="flex justify-between items-start mb-4 border-b border-gray-200 pb-4">
+                    <div className="flex justify-between items-start mb-4 border-b border-gray-200 pb-3">
                         <div>
                             <h2 className="text-xl font-bold">{u.name}</h2>
                             <p className="text-sm text-gray-600">{u.company} • {u.email}</p>
@@ -992,28 +992,28 @@ const UsersPage: React.FC = () => {
                     </div>
 
                     {/* Metrics */}
-                    <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
+                    <div className="grid grid-cols-4 gap-4 mb-4 text-sm">
                         <div>
-                            <p className="text-gray-500 text-xs uppercase font-bold">Plano</p>
+                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Plano</p>
                             <p className="font-semibold">{u.plan}</p>
                         </div>
                         <div>
-                            <p className="text-gray-500 text-xs uppercase font-bold">MRR</p>
-                            <p className="font-semibold">R$ {u.mrr.toLocaleString()}</p>
+                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Valor Mensal</p>
+                            <p className="font-bold text-lg">R$ {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div>
-                            <p className="text-gray-500 text-xs uppercase font-bold">Health Score</p>
+                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Health Score</p>
                             <p className="font-semibold">{u.healthScore}/100</p>
                         </div>
                         <div>
-                            <p className="text-gray-500 text-xs uppercase font-bold">Entrada</p>
+                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Entrada</p>
                             <p className="font-semibold">{new Date(u.joinedAt).toLocaleDateString()}</p>
                         </div>
                     </div>
 
                     {/* Journey Steps Compact */}
                     <div className="bg-white border border-gray-200 rounded p-4">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
                             <Flag size={12}/> Detalhes da Jornada
                         </p>
                         {u.journey ? (
