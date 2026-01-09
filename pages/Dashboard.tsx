@@ -32,8 +32,13 @@ const Dashboard: React.FC = () => {
   }, [fetchUsers]);
 
   // --- KPI CALCULATIONS ---
-  // Total Users: Exclude ONLY Churned users (Keep Active, Risk, New, Ghost)
-  const totalUsers = users.filter(u => u.status !== UserStatus.CHURNED).length;
+  // Total Users: Considerar estritamente: Ativos, Novos, Risco e Fantasma (Exclui Cancelados)
+  const totalUsers = users.filter(u => 
+      u.status === UserStatus.ACTIVE || 
+      u.status === UserStatus.NEW || 
+      u.status === UserStatus.RISK || 
+      u.status === UserStatus.GHOST
+  ).length;
 
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
