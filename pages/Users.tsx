@@ -414,6 +414,42 @@ const UsersPage: React.FC = () => {
 
   return (
     <>
+    {/* Style Block to Force Print Layout */}
+    <style>{`
+        @media print {
+            @page { size: auto; margin: 10mm; }
+            
+            /* RESETAR BLOQUEIOS DE SCROLL DO LAYOUT PRINCIPAL */
+            html, body, #root, main {
+                height: auto !important;
+                min-height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            /* ESCONDER TUDO DA TELA */
+            body * {
+                visibility: hidden;
+            }
+
+            /* MOSTRAR APENAS ÁREA DE IMPRESSÃO */
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+
+            /* POSICIONAR NO TOPO ABSOLUTO DO DOC */
+            #print-area {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                margin: 0;
+                background: white;
+                color: black;
+            }
+        }
+    `}</style>
+
     <div className="p-8 max-w-[1600px] mx-auto relative print:hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
@@ -966,7 +1002,7 @@ const UsersPage: React.FC = () => {
     </div>
 
     {/* --- PRINT ONLY LAYOUT (Relatório Geral) --- */}
-    <div className="hidden print:block absolute top-0 left-0 w-full h-auto bg-white z-[9999] p-8 text-black">
+    <div id="print-area" className="hidden print:block w-full h-auto bg-white z-[9999] p-8 text-black">
         <div className="text-center mb-8 border-b-2 border-black pb-4">
             <h1 className="text-3xl font-bold uppercase tracking-wider">Relatório de Base de Clientes</h1>
             <p className="text-gray-600 mt-2">
@@ -999,7 +1035,7 @@ const UsersPage: React.FC = () => {
                         </div>
                         <div>
                             <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Valor Mensal</p>
-                            <p className="font-bold text-lg">R$ {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            <p className="font-bold text-lg text-black">R$ {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div>
                             <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Health Score</p>
