@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit, Megaphone, Timer } from 'lucide-react';
+import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit, Megaphone, Timer, Printer, Calendar } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { COLORS } from '../constants';
@@ -148,6 +148,10 @@ const UserProfile: React.FC = () => {
       };
   }, [healthHistory]);
 
+  const handlePrint = () => {
+      window.print();
+  };
+
   if (!user) {
     return (
       <div className="p-8 flex flex-col items-center justify-center h-full text-gray-500">
@@ -280,32 +284,42 @@ const UserProfile: React.FC = () => {
   };
 
   const MetricPill = ({ label, value, color, icon: Icon }: any) => (
-    <div className="flex flex-col p-3 rounded-lg bg-white/5 border border-white/5">
+    <div className="flex flex-col p-3 rounded-lg bg-white/5 border border-white/5 print:border-gray-200 print:bg-white">
         <div className="flex justify-between items-start mb-2">
-            <span className={`p-1.5 rounded-md ${color.bg} ${color.text}`}>
+            <span className={`p-1.5 rounded-md ${color.bg} ${color.text} print:bg-gray-100 print:text-black`}>
                 <Icon size={14} />
             </span>
-            <span className="text-lg font-bold text-white font-mono">{value}</span>
+            <span className="text-lg font-bold text-white font-mono print:text-black">{value}</span>
         </div>
-        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
-            <div className={`h-full ${color.bar}`} style={{width: `${value}%`}}></div>
+        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden print:bg-gray-200">
+            <div className={`h-full ${color.bar} print:bg-black`} style={{width: `${value}%`}}></div>
         </div>
-        <span className="text-[10px] text-gray-500 uppercase mt-2">{label}</span>
+        <span className="text-[10px] text-gray-500 uppercase mt-2 print:text-gray-600">{label}</span>
     </div>
   );
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto pb-20">
-      <div className="mb-6">
+    <div className="p-8 max-w-[1600px] mx-auto pb-20 print:p-0 print:pb-0">
+      
+      {/* SCREEN ONLY HEADER */}
+      <div className="mb-6 flex justify-between items-center print:hidden">
         <button 
             onClick={() => navigate('/users')} 
             className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm group"
         >
             <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Voltar para Usuários
         </button>
+
+        <button 
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 transition-colors shadow-sm"
+        >
+            <Printer size={16} /> Gerar PDF / Imprimir
+        </button>
       </div>
 
-      <Card className="mb-8 p-8 border-white/10 relative overflow-hidden group">
+      {/* SCREEN CARD */}
+      <Card className="mb-8 p-8 border-white/10 relative overflow-hidden group print:hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-neon-cyan/5 rounded-full blur-3xl group-hover:bg-neon-cyan/10 transition-all duration-700"></div>
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 relative z-10">
             <div className="flex-1">
@@ -370,7 +384,8 @@ const UserProfile: React.FC = () => {
         </div>
       </Card>
 
-      <div className="flex border-b border-white/10 mb-8 overflow-x-auto scrollbar-hide">
+      {/* TABS NAVIGATION (SCREEN ONLY) */}
+      <div className="flex border-b border-white/10 mb-8 overflow-x-auto scrollbar-hide print:hidden">
         <button 
             onClick={() => setActiveTab('overview')}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${activeTab === 'overview' ? 'border-neon-cyan text-neon-cyan' : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-white/10'}`}
@@ -391,7 +406,8 @@ const UserProfile: React.FC = () => {
         </button>
       </div>
 
-      <div className="min-h-[400px]">
+      {/* --- CONTENT AREA (SCREEN) --- */}
+      <div className="min-h-[400px] print:hidden">
           {activeTab === 'overview' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
                 <Card className="col-span-1 md:col-span-2 lg:col-span-8 min-h-[300px]">
@@ -455,7 +471,7 @@ const UserProfile: React.FC = () => {
           {activeTab === 'journey' && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="max-w-5xl mx-auto">
                   
-                  {/* --- SMART ALERTS SECTION (NEW) --- */}
+                  {/* ... Smart Alerts (Screen Only) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       {showStagnationAlert && (
                           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
@@ -614,6 +630,131 @@ const UserProfile: React.FC = () => {
                 </div>
             </motion.div>
           )}
+      </div>
+
+      {/* --- PRINT ONLY LAYOUT (High Contrast, Full Data) --- */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 overflow-y-auto text-black">
+          <div className="max-w-4xl mx-auto">
+              {/* Header */}
+              <div className="flex justify-between items-end border-b-2 border-black pb-4 mb-8">
+                  <div>
+                      <h1 className="text-3xl font-bold font-display text-black uppercase tracking-wider">Relatório de Cliente</h1>
+                      <p className="text-sm text-gray-600 mt-1">Gerado em {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}</p>
+                  </div>
+                  <div className="text-right">
+                      <h2 className="text-xl font-bold text-black">{user.name}</h2>
+                      <p className="text-sm text-gray-600">{user.company}</p>
+                  </div>
+              </div>
+
+              {/* Status Grid */}
+              <div className="grid grid-cols-4 gap-4 mb-8 border border-gray-300 rounded-lg p-4 bg-gray-50">
+                  <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase">Status</p>
+                      <p className="text-lg font-bold">{user.status}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase">Plano</p>
+                      <p className="text-lg font-bold">{user.plan}</p>
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase">Health Score</p>
+                      <p className="text-lg font-bold">{user.healthScore}/100</p>
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase">Receita (MRR)</p>
+                      <p className="text-lg font-bold">R$ {user.mrr.toLocaleString()}</p>
+                  </div>
+                  <div className="col-span-4 border-t border-gray-200 mt-2 pt-2 flex gap-6 text-sm text-gray-600">
+                      <span><span className="font-bold">Email:</span> {user.email}</span>
+                      <span><span className="font-bold">Entrada:</span> {new Date(user.joinedAt).toLocaleDateString()}</span>
+                      <span><span className="font-bold">Último Acesso:</span> {formatLastActive(user.lastActive)}</span>
+                  </div>
+              </div>
+
+              {/* Metrics */}
+              <h3 className="text-lg font-bold border-b border-black pb-2 mb-4">Métricas de Saúde</h3>
+              <div className="grid grid-cols-4 gap-4 mb-8">
+                  <div className="border rounded p-3 text-center">
+                      <p className="text-xs uppercase text-gray-500">Engajamento</p>
+                      <p className="text-xl font-bold">{metrics.engagement}</p>
+                  </div>
+                  <div className="border rounded p-3 text-center">
+                      <p className="text-xs uppercase text-gray-500">Suporte</p>
+                      <p className="text-xl font-bold">{metrics.support}</p>
+                  </div>
+                  <div className="border rounded p-3 text-center">
+                      <p className="text-xs uppercase text-gray-500">Financeiro</p>
+                      <p className="text-xl font-bold">{metrics.finance}</p>
+                  </div>
+                  <div className="border rounded p-3 text-center">
+                      <p className="text-xs uppercase text-gray-500">Risco</p>
+                      <p className="text-xl font-bold">{metrics.risk}</p>
+                  </div>
+              </div>
+
+              {/* Journey Details */}
+              <h3 className="text-lg font-bold border-b border-black pb-2 mb-4">Jornada de Sucesso</h3>
+              <div className="mb-8">
+                  <div className="bg-gray-100 p-4 rounded mb-4">
+                      <p className="text-xs font-bold text-gray-500 uppercase">Objetivo Principal (North Star)</p>
+                      <p className="text-lg font-bold">{journey.coreGoal}</p>
+                  </div>
+                  
+                  <div className="space-y-0 border border-gray-300 rounded">
+                      {journey.steps.map((step, idx) => (
+                          <div key={step.id} className={`flex items-start p-4 ${idx !== journey.steps.length - 1 ? 'border-b border-gray-200' : ''}`}>
+                              <div className={`mt-1 w-5 h-5 border-2 rounded flex items-center justify-center mr-4 ${step.isCompleted ? 'border-black bg-black text-white' : 'border-gray-300'}`}>
+                                  {step.isCompleted && <CheckSquare size={12} />}
+                              </div>
+                              <div className="flex-1">
+                                  <div className="flex justify-between">
+                                      <span className={`font-bold ${step.isCompleted ? 'text-black' : 'text-gray-500'}`}>{step.label}</span>
+                                      {step.isCompleted && step.completedAt && (
+                                          <span className="text-xs font-mono text-gray-600 border border-gray-300 px-2 py-0.5 rounded bg-gray-50">
+                                              {new Date(step.completedAt).toLocaleDateString()}
+                                          </span>
+                                      )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-1">{step.description}</p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
+              {/* Recent History */}
+              {userHistory.length > 0 && (
+                  <>
+                    <h3 className="text-lg font-bold border-b border-black pb-2 mb-4">Histórico Recente (Últimos 5 Eventos)</h3>
+                    <table className="w-full text-left text-sm border-collapse border border-gray-300">
+                        <thead className="bg-gray-100">
+                            <tr>
+                                <th className="p-2 border border-gray-300">Data</th>
+                                <th className="p-2 border border-gray-300">Tipo</th>
+                                <th className="p-2 border border-gray-300">Evento</th>
+                                <th className="p-2 border border-gray-300">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {userHistory.slice(0, 5).map((ev) => (
+                                <tr key={ev.id}>
+                                    <td className="p-2 border border-gray-300 font-mono text-xs">{ev.timestamp}</td>
+                                    <td className="p-2 border border-gray-300 uppercase text-xs font-bold">{ev.type}</td>
+                                    <td className="p-2 border border-gray-300 font-semibold">{ev.title}</td>
+                                    <td className="p-2 border border-gray-300 text-gray-600">{ev.description}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                  </>
+              )}
+
+              {/* Footer */}
+              <div className="mt-12 text-center text-xs text-gray-400 border-t pt-4">
+                  Relatório gerado automaticamente pelo sistema NEONDASH.
+              </div>
+          </div>
       </div>
     </div>
   );
