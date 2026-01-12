@@ -3,20 +3,28 @@ import Card from '../components/ui/Card';
 import Gauge from '../components/Accelerator/Gauge';
 import { useUserStore } from '../store/useUserStore';
 import { useAcceleratorStore } from '../store/useAcceleratorStore';
-import { Rocket, Target, Users, Zap, TrendingUp, AlertTriangle, Edit2, Check, RotateCcw, Lock } from 'lucide-react';
+import { Rocket, Target, Users, Zap, TrendingUp, AlertTriangle, Edit2, Check, RotateCcw, Lock, Plus, Trash2, X, Save } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
-import { UserStatus } from '../types';
+import { UserStatus, Mission } from '../types';
 
 const Accelerator: React.FC = () => {
     const { users } = useUserStore();
-    const { missions, activeMissionId, updateMissionTarget, setActiveMission, resetMissions } = useAcceleratorStore();
+    const { missions, activeMissionId, updateMission, addMission, deleteMission, setActiveMission, resetMissions } = useAcceleratorStore();
     const { addToast } = useToastStore();
 
-    // Estado local para edição
-    const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
-    const [tempTarget, setTempTarget] = useState<number>(0);
+    // Estado do Modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null); // Se null, é criação
+    
+    // Formulário
+    const [form, setForm] = useState({
+        title: '',
+        description: '',
+        target: 0,
+        durationMonths: 3
+    });
 
-    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0];
+    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0] || { title: 'Nenhuma Missão', description: 'Crie uma nova missão.', target: 100 };
 
     // --- CÁLCULO DE USUÁRIOS VÁLIDOS ---
     // Regra: Exclui Cancelados. Inclui Ativos, Novos, Risco, Fantasma.
@@ -48,27 +56,56 @@ const Accelerator: React.FC = () => {
         return newUsersLastWeek;
     }, [validUsers]);
 
-    // Handlers
-    const handleEditStart = (missionId: string, currentTarget: number) => {
-        setEditingMissionId(missionId);
-        setTempTarget(currentTarget);
+    // --- HANDLERS ---
+
+    const handleOpenCreate = () => {
+        setEditingId(null);
+        setForm({ title: '', description: '', target: 100, durationMonths: 3 });
+        setIsModalOpen(true);
     };
 
-    const handleEditSave = () => {
-        if (editingMissionId) {
-            updateMissionTarget(editingMissionId, tempTarget);
-            setEditingMissionId(null);
-            addToast({ type: 'success', title: 'Meta Atualizada', message: 'O alvo da missão foi redefinido.' });
+    const handleOpenEdit = (e: React.MouseEvent, mission: Mission) => {
+        e.stopPropagation();
+        setEditingId(mission.id);
+        setForm({
+            title: mission.title,
+            description: mission.description,
+            target: mission.target,
+            durationMonths: mission.durationMonths
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (editingId) {
+            // Edit
+            updateMission(editingId, form);
+            addToast({ type: 'success', title: 'Missão Atualizada', message: 'As configurações foram salvas.' });
+        } else {
+            // Create
+            addMission(form);
+            addToast({ type: 'success', title: 'Missão Criada', message: 'Nova meta adicionada ao roteiro.' });
+        }
+        setIsModalOpen(false);
+    };
+
+    const handleDelete = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (confirm("Tem certeza que deseja excluir esta missão?")) {
+            deleteMission(id);
+            addToast({ type: 'info', title: 'Missão Removida', message: 'O item foi excluído do roteiro.' });
         }
     };
 
     const handleSelectMission = (id: string) => {
         setActiveMission(id);
-        addToast({ type: 'info', title: 'Missão Alterada', message: 'O foco do acelerador foi ajustado.' });
+        addToast({ type: 'info', title: 'Foco Ajustado', message: 'Missão ativa alterada.' });
     };
 
     const handleReset = () => {
-        if(confirm("Deseja restaurar as metas originais?")) {
+        if(confirm("Deseja restaurar as metas originais? Todas as missões personalizadas serão perdidas.")) {
             resetMissions();
             addToast({ type: 'warning', title: 'Reset', message: 'Metas restauradas para o padrão de fábrica.' });
         }
@@ -105,23 +142,7 @@ const Accelerator: React.FC = () => {
                         </div>
                         <div className="text-right">
                             <p className="text-xs text-gray-500 uppercase tracking-widest">Alvo Trimestral</p>
-                            {editingMissionId === activeMission.id ? (
-                                <div className="flex items-center gap-2 mt-1">
-                                    <input 
-                                        type="number" 
-                                        value={tempTarget} 
-                                        onChange={(e) => setTempTarget(Number(e.target.value))}
-                                        className="bg-black/30 border border-neon-cyan/50 rounded px-2 py-1 text-white w-24 text-right font-mono"
-                                        autoFocus
-                                    />
-                                    <button onClick={handleEditSave} className="p-1.5 bg-neon-cyan text-dark-bg rounded hover:bg-neon-blue"><Check size={14}/></button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-end gap-2 group cursor-pointer" onClick={() => handleEditStart(activeMission.id, activeMission.target)}>
-                                    <p className="text-3xl font-display font-bold text-white">{activeMission.target}</p>
-                                    <Edit2 size={14} className="text-gray-600 group-hover:text-neon-cyan opacity-0 group-hover:opacity-100 transition-all" />
-                                </div>
-                            )}
+                            <p className="text-4xl font-display font-bold text-white">{activeMission.target}</p>
                         </div>
                     </div>
 
@@ -130,7 +151,7 @@ const Accelerator: React.FC = () => {
                         <Gauge 
                             current={activeCount} 
                             target={activeMission.target} 
-                            label="Usuários Ativos Válidos"
+                            label="Base Ativa Validada"
                         />
                     </div>
 
@@ -196,7 +217,16 @@ const Accelerator: React.FC = () => {
 
                 {/* --- MISSIONS LIST --- */}
                 <div className="col-span-12 mt-4">
-                    <h3 className="text-lg font-bold text-white mb-4 px-2">Roteiro de Missões 2026</h3>
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <h3 className="text-lg font-bold text-white">Roteiro de Missões</h3>
+                        <button 
+                            onClick={handleOpenCreate}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 rounded-lg text-xs font-bold hover:bg-neon-cyan/20 transition-all uppercase tracking-wide"
+                        >
+                            <Plus size={14} /> Nova Missão
+                        </button>
+                    </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         {missions.map((mission) => {
                             const isActive = mission.id === activeMissionId;
@@ -219,10 +249,12 @@ const Accelerator: React.FC = () => {
                                     {isActive && <div className="absolute top-0 left-0 w-1 h-full bg-neon-cyan"></div>}
                                     
                                     <div className="flex justify-between items-start mb-3">
-                                        <h4 className={`font-bold text-sm ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                                        <h4 className={`font-bold text-sm line-clamp-1 pr-2 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
                                             {mission.title}
                                         </h4>
-                                        {isCompleted ? <Check size={16} className="text-neon-green" /> : isActive ? <Zap size={16} className="text-neon-cyan animate-pulse"/> : <Lock size={14} className="text-gray-600"/>}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {isCompleted ? <Check size={16} className="text-neon-green" /> : isActive ? <Zap size={16} className="text-neon-cyan animate-pulse"/> : <Lock size={14} className="text-gray-600"/>}
+                                        </div>
                                     </div>
                                     
                                     <div className="mb-4">
@@ -231,15 +263,31 @@ const Accelerator: React.FC = () => {
                                     </div>
 
                                     {/* Mini Progress Bar */}
-                                    <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                    <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden mb-3">
                                         <div 
                                             className={`h-full ${isCompleted ? 'bg-neon-green' : isActive ? 'bg-neon-cyan' : 'bg-gray-600'}`} 
                                             style={{ width: `${progress}%` }}
                                         ></div>
                                     </div>
-                                    <div className="mt-2 flex justify-between text-[10px] text-gray-500">
-                                        <span>{progress.toFixed(0)}% Concluído</span>
-                                        <span>{mission.durationMonths} meses</span>
+                                    
+                                    <div className="flex justify-between items-center text-[10px] text-gray-500">
+                                        <span>{progress.toFixed(0)}% • {mission.durationMonths} meses</span>
+                                        
+                                        {/* Actions (Only visible on hover) */}
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={(e) => handleOpenEdit(e, mission)}
+                                                className="p-1 hover:text-white hover:bg-white/10 rounded" title="Editar"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => handleDelete(e, mission.id)}
+                                                className="p-1 hover:text-red-400 hover:bg-red-500/10 rounded" title="Excluir"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -247,6 +295,75 @@ const Accelerator: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* --- MANAGEMENT MODAL --- */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-md bg-[#111625] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+                        <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                            <h3 className="text-lg font-bold text-white font-display">
+                                {editingId ? 'Editar Missão' : 'Nova Missão'}
+                            </h3>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+                        </div>
+                        
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Título da Missão</label>
+                                <input 
+                                    type="text" 
+                                    required 
+                                    value={form.title} 
+                                    onChange={(e) => setForm({...form, title: e.target.value})}
+                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none placeholder-gray-600" 
+                                    placeholder="Ex: Missão 5: Dominação Global"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Descrição / Foco</label>
+                                <textarea 
+                                    value={form.description} 
+                                    onChange={(e) => setForm({...form, description: e.target.value})}
+                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none placeholder-gray-600 resize-none h-20" 
+                                    placeholder="Ex: Focar na expansão internacional..."
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-400 uppercase">Meta (Usuários)</label>
+                                    <input 
+                                        type="number" 
+                                        required 
+                                        min="1"
+                                        value={form.target} 
+                                        onChange={(e) => setForm({...form, target: Number(e.target.value)})}
+                                        className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none font-mono" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-400 uppercase">Duração (Meses)</label>
+                                    <input 
+                                        type="number" 
+                                        required 
+                                        min="1"
+                                        value={form.durationMonths} 
+                                        onChange={(e) => setForm({...form, durationMonths: Number(e.target.value)})}
+                                        className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none font-mono" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-3 border-t border-white/5 mt-2">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded">Cancelar</button>
+                                <button type="submit" className="px-6 py-2 bg-neon-cyan text-dark-bg font-bold rounded text-sm hover:bg-neon-blue flex items-center gap-2">
+                                    <Save size={16} /> Salvar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

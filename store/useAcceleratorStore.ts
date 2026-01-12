@@ -7,7 +7,9 @@ interface AcceleratorState {
   activeMissionId: string | null;
   
   setActiveMission: (id: string) => void;
-  updateMissionTarget: (id: string, newTarget: number) => void;
+  addMission: (mission: Omit<Mission, 'id' | 'status'>) => void;
+  updateMission: (id: string, data: Partial<Mission>) => void;
+  deleteMission: (id: string) => void;
   completeMission: (id: string) => void;
   resetMissions: () => void;
 }
@@ -62,9 +64,31 @@ export const useAcceleratorStore = create<AcceleratorState>()(
                 return { missions: updatedMissions, activeMissionId: id };
             }),
 
-            updateMissionTarget: (id, newTarget) => set((state) => ({
-                missions: state.missions.map(m => m.id === id ? { ...m, target: newTarget } : m)
+            addMission: (missionData) => set((state) => {
+                const newMission: Mission = {
+                    id: `m_${Date.now()}`,
+                    status: 'pending',
+                    ...missionData
+                };
+                return { missions: [...state.missions, newMission] };
+            }),
+
+            updateMission: (id, data) => set((state) => ({
+                missions: state.missions.map(m => m.id === id ? { ...m, ...data } : m)
             })),
+
+            deleteMission: (id) => set((state) => {
+                const filtered = state.missions.filter(m => m.id !== id);
+                // Se deletar a ativa, define a primeira disponível como ativa ou null
+                let newActiveId = state.activeMissionId;
+                if (state.activeMissionId === id) {
+                    newActiveId = filtered.length > 0 ? filtered[0].id : null;
+                    if (filtered.length > 0) {
+                        filtered[0].status = 'active';
+                    }
+                }
+                return { missions: filtered, activeMissionId: newActiveId };
+            }),
 
             completeMission: (id) => set((state) => ({
                 missions: state.missions.map(m => m.id === id ? { ...m, status: 'completed' as const, completedAt: new Date().toISOString() } : m)
