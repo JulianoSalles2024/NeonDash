@@ -142,3 +142,14 @@ export enum UserStatus {
       totalTokens: number;
     };
   }
+
+  export interface Mission {
+    id: string;
+    title: string;
+    description: string;
+    target: number; // Meta de usuários ativos
+    durationMonths: number;
+    status: 'pending' | 'active' | 'completed' | 'paused';
+    startDate?: string;
+    completedAt?: string;
+  }

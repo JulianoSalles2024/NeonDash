@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Bot,
-  Network
+  Network,
+  Rocket // Added Icon
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUIStore } from '../../store/useUIStore';
@@ -112,6 +113,7 @@ const Sidebar: React.FC = () => {
           <div className="mb-6">
             <SectionTitle label="Plataforma" collapsed={isSidebarCollapsed} />
             <NavItem icon={LayoutDashboard} label="Mission Control" to="/" active={location.pathname === '/'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
+            <NavItem icon={Rocket} label="Meta Acelerador" to="/accelerator" active={location.pathname === '/accelerator'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
             <NavItem icon={Activity} label="Motor de Saúde" to="/health" active={location.pathname === '/health'} collapsed={isSidebarCollapsed} onClick={closeMobileMenu} />
           </div>
 

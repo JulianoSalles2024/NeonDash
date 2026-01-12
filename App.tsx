@@ -16,6 +16,7 @@ import Retention from './pages/Retention';
 import Billing from './pages/Billing';
 import Settings from './pages/Settings';
 import Integrations from './pages/Integrations';
+import Accelerator from './pages/Accelerator'; // Importação
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { ToastContainer } from './components/ui/Toast';
@@ -107,6 +108,7 @@ const App: React.FC = () => {
           {/* Protected Routes Wrapper */}
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/accelerator" element={<Accelerator />} />
             <Route path="/health" element={<HealthEngine />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/users/:id" element={<UserProfile />} />
