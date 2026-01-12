@@ -7,7 +7,6 @@ import { Rocket, Target, Users, Zap, TrendingUp, Edit2, Check, RotateCcw, Lock, 
 import { useToastStore } from '../store/useToastStore';
 import { UserStatus, Mission } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti'; // Se não tiver instalado, usamos uma animação CSS fallback ou removemos. Como não posso instalar pacotes, usarei animação CSS/Framer.
 
 const Accelerator: React.FC = () => {
     const { users } = useUserStore();
@@ -30,7 +29,18 @@ const Accelerator: React.FC = () => {
         startDate: ''
     });
 
-    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0] || { title: 'Nenhuma Missão', description: 'Crie uma nova missão.', target: 100, durationMonths: 3 };
+    // Fallback typed correctly to avoid TS errors
+    const defaultMission: Mission = {
+        id: 'default',
+        title: 'Nenhuma Missão',
+        description: 'Crie uma nova missão para começar.',
+        target: 100,
+        durationMonths: 3,
+        status: 'pending',
+        startDate: new Date().toISOString()
+    };
+
+    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0] || defaultMission;
 
     // --- CÁLCULO DE USUÁRIOS VÁLIDOS ---
     const validUsers = useMemo(() => {
