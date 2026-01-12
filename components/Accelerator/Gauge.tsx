@@ -128,10 +128,9 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                 <text x="340" y="210" textAnchor="middle" fill="#6b7280" fontSize="12" fontWeight="bold">120%</text>
             </svg>
 
-            {/* Central Info */}
-            <div className="absolute bottom-0 text-center flex flex-col items-center">
-                <p className="text-neon-cyan/60 text-[10px] uppercase tracking-[0.3em] mb-1">{label}</p>
-                <div className="flex items-baseline gap-1 relative">
+            {/* Central Info - Reordered: Number first, then Label */}
+            <div className="absolute bottom-0 text-center flex flex-col items-center translate-y-2">
+                <div className="flex items-baseline gap-1 relative mb-1">
                     <span 
                         className="text-6xl font-display font-bold text-white transition-colors duration-500"
                         style={{ textShadow: `0 0 20px ${glowColor}` }}
@@ -141,8 +140,10 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                     <span className="text-gray-500 text-sm font-medium">/ {target}</span>
                 </div>
                 
+                <p className="text-neon-cyan/60 text-[10px] uppercase tracking-[0.3em] mb-4">{label}</p>
+                
                 {/* Status Badge Dinâmico */}
-                <div className="mt-4">
+                <div>
                     {percentage >= 1.0 ? (
                         <span className="px-3 py-1 rounded bg-neon-purple/20 text-neon-purple border border-neon-purple/50 text-xs font-bold uppercase tracking-wider animate-pulse shadow-[0_0_15px_rgba(155,92,255,0.4)]">
                             Overdrive
