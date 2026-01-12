@@ -21,8 +21,7 @@ const DEFAULT_MISSIONS: Mission[] = [
         description: 'Estabilidade, produto redondo e validação de canal.',
         target: 200,
         durationMonths: 3,
-        status: 'active', // Começa ativa por padrão
-        startDate: new Date().toISOString() // Default para agora
+        status: 'active' // Começa ativa por padrão
     },
     {
         id: 'm2',
@@ -58,11 +57,7 @@ export const useAcceleratorStore = create<AcceleratorState>()(
 
             setActiveMission: (id) => set((state) => {
                 const updatedMissions = state.missions.map(m => {
-                    if (m.id === id) {
-                        // Se já tem data definida (manual), mantém. Se não, define agora.
-                        const effectiveStartDate = m.startDate || new Date().toISOString();
-                        return { ...m, status: 'active' as const, startDate: effectiveStartDate };
-                    }
+                    if (m.id === id) return { ...m, status: 'active' as const, startDate: new Date().toISOString() };
                     if (m.status === 'active') return { ...m, status: 'paused' as const };
                     return m;
                 });

@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Gauge from '../components/Accelerator/Gauge';
 import { useUserStore } from '../store/useUserStore';
 import { useAcceleratorStore } from '../store/useAcceleratorStore';
-import { Rocket, Target, Users, Zap, TrendingUp, AlertTriangle, Edit2, Check, RotateCcw, Lock, Plus, Trash2, X, Save, Calendar, Clock } from 'lucide-react';
+import { Rocket, Target, Users, Zap, TrendingUp, AlertTriangle, Edit2, Check, RotateCcw, Lock, Plus, Trash2, X, Save } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
 import { UserStatus, Mission } from '../types';
 
@@ -21,53 +21,21 @@ const Accelerator: React.FC = () => {
         title: '',
         description: '',
         target: 0,
-        durationMonths: 3,
-        startDate: '' // Novo campo YYYY-MM-DD
+        durationMonths: 3
     });
 
-    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0] || { title: 'Nenhuma Missão', description: 'Crie uma nova missão.', target: 100, durationMonths: 3 };
+    const activeMission = missions.find(m => m.id === activeMissionId) || missions[0] || { title: 'Nenhuma Missão', description: 'Crie uma nova missão.', target: 100 };
 
     // --- CÁLCULO DE USUÁRIOS VÁLIDOS ---
+    // Regra: Exclui Cancelados. Inclui Ativos, Novos, Risco, Fantasma.
     const validUsers = useMemo(() => {
         return users.filter(u => u.status !== UserStatus.CHURNED);
     }, [users]);
 
     const activeCount = validUsers.length;
 
-    // --- CÁLCULO TEMPORAL (TIME PROGRESS) ---
-    const timeMetrics = useMemo(() => {
-        if (!activeMission.startDate) return null;
-        
-        const start = new Date(activeMission.startDate);
-        const end = new Date(start);
-        end.setMonth(start.getMonth() + activeMission.durationMonths);
-        
-        const now = new Date();
-        const totalDurationMs = end.getTime() - start.getTime();
-        const elapsedMs = now.getTime() - start.getTime();
-        
-        // Se ainda não começou (futuro)
-        if (elapsedMs < 0) {
-            return {
-                daysRemaining: Math.ceil(totalDurationMs / (1000 * 60 * 60 * 24)),
-                progress: 0,
-                status: 'future',
-                endDate: end
-            };
-        }
-
-        const progress = Math.min(100, Math.max(0, (elapsedMs / totalDurationMs) * 100));
-        const daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        
-        return {
-            daysRemaining,
-            progress,
-            status: daysRemaining === 0 ? 'ended' : 'running',
-            endDate: end
-        };
-    }, [activeMission]);
-
     // --- CÁLCULO DE SAÚDE DA BASE ---
+    // Saúde = (Ativos - Risco - Fantasma) / Ativos Válidos
     const healthMetric = useMemo(() => {
         if (activeCount === 0) return 0;
         const riskyUsers = validUsers.filter(u => u.status === UserStatus.RISK || u.status === UserStatus.GHOST).length;
@@ -92,13 +60,7 @@ const Accelerator: React.FC = () => {
 
     const handleOpenCreate = () => {
         setEditingId(null);
-        setForm({ 
-            title: '', 
-            description: '', 
-            target: 100, 
-            durationMonths: 3,
-            startDate: new Date().toISOString().split('T')[0] 
-        });
+        setForm({ title: '', description: '', target: 100, durationMonths: 3 });
         setIsModalOpen(true);
     };
 
@@ -109,8 +71,7 @@ const Accelerator: React.FC = () => {
             title: mission.title,
             description: mission.description,
             target: mission.target,
-            durationMonths: mission.durationMonths,
-            startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : ''
+            durationMonths: mission.durationMonths
         });
         setIsModalOpen(true);
     };
@@ -118,17 +79,13 @@ const Accelerator: React.FC = () => {
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Ensure date is saved as ISO string if present
-        const payload = {
-            ...form,
-            startDate: form.startDate ? new Date(form.startDate).toISOString() : undefined
-        };
-
         if (editingId) {
-            updateMission(editingId, payload);
+            // Edit
+            updateMission(editingId, form);
             addToast({ type: 'success', title: 'Missão Atualizada', message: 'As configurações foram salvas.' });
         } else {
-            addMission(payload);
+            // Create
+            addMission(form);
             addToast({ type: 'success', title: 'Missão Criada', message: 'Nova meta adicionada ao roteiro.' });
         }
         setIsModalOpen(false);
@@ -176,39 +133,12 @@ const Accelerator: React.FC = () => {
                 <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[500px] flex flex-col justify-between">
                     {/* Header da Missão Ativa */}
                     <div className="flex justify-between items-start z-10 relative">
-                        <div className="flex-1 pr-8">
+                        <div>
                             <span className="px-2 py-1 rounded bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-wider mb-2 inline-block">
                                 Missão Ativa
                             </span>
                             <h2 className="text-2xl font-bold text-white">{activeMission.title}</h2>
                             <p className="text-sm text-gray-400 max-w-md mt-1">{activeMission.description}</p>
-                            
-                            {/* Cronômetro Visual */}
-                            {timeMetrics && (
-                                <div className="mt-4 flex items-center gap-4 bg-white/5 p-3 rounded-lg border border-white/5 max-w-sm">
-                                    <div className="p-2 bg-white/5 rounded text-gray-400">
-                                        <Clock size={16} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-gray-400">Tempo de Missão</span>
-                                            <span className={`font-bold ${timeMetrics.daysRemaining < 30 ? 'text-yellow-500' : 'text-white'}`}>
-                                                {timeMetrics.daysRemaining} dias restantes
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full ${timeMetrics.progress > 80 ? 'bg-red-500' : 'bg-gray-500'} transition-all duration-1000`} 
-                                                style={{ width: `${timeMetrics.progress}%` }}
-                                            ></div>
-                                        </div>
-                                        <div className="flex justify-between mt-1">
-                                            <span className="text-[9px] text-gray-600">Início: {new Date(activeMission.startDate!).toLocaleDateString()}</span>
-                                            <span className="text-[9px] text-gray-600">Fim: {timeMetrics.endDate.toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                         <div className="text-right">
                             <p className="text-xs text-gray-500 uppercase tracking-widest">Alvo Trimestral</p>
@@ -401,16 +331,15 @@ const Accelerator: React.FC = () => {
                             
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-400 uppercase">Data de Início</label>
-                                    <div className="relative">
-                                        <Calendar className="absolute left-3 top-2.5 text-gray-500 pointer-events-none" size={14} />
-                                        <input 
-                                            type="date" 
-                                            value={form.startDate} 
-                                            onChange={(e) => setForm({...form, startDate: e.target.value})}
-                                            className="w-full bg-white/5 border border-white/10 rounded pl-9 pr-3 py-2 text-white focus:border-neon-cyan focus:outline-none [color-scheme:dark]" 
-                                        />
-                                    </div>
+                                    <label className="text-xs font-semibold text-gray-400 uppercase">Meta (Usuários)</label>
+                                    <input 
+                                        type="number" 
+                                        required 
+                                        min="1"
+                                        value={form.target} 
+                                        onChange={(e) => setForm({...form, target: Number(e.target.value)})}
+                                        className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none font-mono" 
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-semibold text-gray-400 uppercase">Duração (Meses)</label>
@@ -423,18 +352,6 @@ const Accelerator: React.FC = () => {
                                         className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none font-mono" 
                                     />
                                 </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-gray-400 uppercase">Meta (Usuários)</label>
-                                <input 
-                                    type="number" 
-                                    required 
-                                    min="1"
-                                    value={form.target} 
-                                    onChange={(e) => setForm({...form, target: Number(e.target.value)})}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none font-mono" 
-                                />
                             </div>
 
                             <div className="pt-4 flex justify-end gap-3 border-t border-white/5 mt-2">
