@@ -94,10 +94,11 @@ const Dashboard: React.FC = () => {
               count: countActivation, 
               percent: (countActivation / total) * 100,
               color: 'text-red-400', 
-              bg: 'bg-red-500', 
-              border: 'border-red-500/30',
               icon: AlertCircle,
-              special: false
+              // Estilos Neon/Mission
+              containerClass: 'bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 hover:border-red-500/60 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]',
+              accentClass: 'bg-red-500',
+              barClass: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'
           },
           { 
               id: 'method', 
@@ -107,10 +108,11 @@ const Dashboard: React.FC = () => {
               count: countMethod, 
               percent: (countMethod / total) * 100,
               color: 'text-orange-400', 
-              bg: 'bg-orange-500', 
-              border: 'border-orange-500/30',
               icon: CheckCircle,
-              special: false
+              // Estilos Neon/Mission
+              containerClass: 'bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/30 hover:border-orange-500/60 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]',
+              accentClass: 'bg-orange-500',
+              barClass: 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]'
           },
           { 
               id: 'execution', 
@@ -120,10 +122,11 @@ const Dashboard: React.FC = () => {
               count: countExecution, 
               percent: (countExecution / total) * 100,
               color: 'text-blue-400', 
-              bg: 'bg-blue-500', 
-              border: 'border-blue-500/30',
               icon: Zap,
-              special: false
+              // Estilos Neon/Mission
+              containerClass: 'bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/30 hover:border-blue-500/60 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',
+              accentClass: 'bg-blue-500',
+              barClass: 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]'
           },
           { 
               id: 'value', 
@@ -133,10 +136,12 @@ const Dashboard: React.FC = () => {
               count: countValue, 
               percent: (countValue / total) * 100,
               color: 'text-neon-green', 
-              bg: 'bg-neon-green', 
-              border: 'border-neon-green/50', // Borda mais forte para destaque
               icon: Gem,
-              special: true // Flag para renderização diferenciada
+              special: true,
+              // Estilos Neon/Mission
+              containerClass: 'bg-gradient-to-br from-neon-green/10 to-transparent border-neon-green/30 hover:border-neon-green/60 hover:shadow-[0_0_25px_rgba(52,255,176,0.2)]',
+              accentClass: 'bg-neon-green',
+              barClass: 'bg-neon-green shadow-[0_0_15px_rgba(52,255,176,0.8)]'
           }
       ];
   }, [users]);
@@ -344,7 +349,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </Card>
 
-            {/* --- NEW: DIAGNÓSTICO DE FRICÇÃO (Replacement) --- */}
+            {/* --- NEW: DIAGNÓSTICO DE FRICÇÃO (UPDATED CARD STYLE) --- */}
             <div className="col-span-1 md:col-span-3">
                 <Card className="h-full flex flex-col justify-center border-white/5 bg-white/[0.01]">
                     <div className="flex items-center gap-3 mb-6">
@@ -368,37 +373,39 @@ const Dashboard: React.FC = () => {
                                 )}
 
                                 <div className={`
-                                    relative z-10 p-4 rounded-xl border bg-[#0B0F1A] hover:-translate-y-1 transition-all duration-300 h-full flex flex-col justify-between
-                                    ${stat.special ? 'bg-gradient-to-br from-[#0B0F1A] to-neon-green/5 shadow-[0_0_20px_rgba(52,255,176,0.05)]' : ''}
-                                    ${stat.border}
+                                    relative z-10 p-5 rounded-xl border transition-all duration-300 h-full flex flex-col justify-between overflow-hidden cursor-pointer
+                                    ${stat.containerClass}
                                 `}>
+                                    {/* Accent Side Bar */}
+                                    <div className={`absolute top-0 left-0 w-1 h-full ${stat.accentClass} opacity-80`}></div>
+
                                     <div>
-                                        <div className="flex justify-between items-start mb-2">
+                                        <div className="flex justify-between items-start mb-2 pl-2">
                                             <span className={`text-xs font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</span>
                                             {/* Icon Logic */}
                                             <stat.icon size={16} className={stat.color} />
                                         </div>
                                         
                                         {stat.special && stat.count > 0 && (
-                                            <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neon-green text-dark-bg text-[10px] font-bold uppercase tracking-wide animate-pulse">
+                                            <div className="mb-2 ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neon-green text-dark-bg text-[10px] font-bold uppercase tracking-wide animate-pulse">
                                                 <TrendingUp size={10} /> Oportunidade Upsell
                                             </div>
                                         )}
 
-                                        <p className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                                        <p className="text-sm font-bold text-white mb-1 flex items-center gap-2 pl-2">
                                             {stat.insight}
                                         </p>
-                                        <p className="text-[10px] text-gray-500 leading-tight mb-4">{stat.desc}</p>
+                                        <p className="text-[10px] text-gray-400 leading-tight mb-4 pl-2 opacity-80">{stat.desc}</p>
                                     </div>
 
-                                    <div>
+                                    <div className="pl-2">
                                         <div className="flex items-end gap-2 mb-2">
-                                            <span className="text-2xl font-display font-bold text-white">{stat.count}</span>
+                                            <span className="text-3xl font-display font-bold text-white">{stat.count}</span>
                                             <span className="text-xs text-gray-500 mb-1">usuários</span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                             <div 
-                                                className={`h-full ${stat.bg} shadow-[0_0_8px_rgba(0,0,0,0.5)] transition-all duration-1000`} 
+                                                className={`h-full ${stat.barClass} transition-all duration-1000`} 
                                                 style={{ width: `${Math.max(5, stat.percent)}%` }} // Min 5% visual
                                             ></div>
                                         </div>
