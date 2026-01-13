@@ -14,23 +14,15 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
     
     // Configurações Geométricas (Semi-Círculo 180 graus)
     const cx = 200;
-    const cy = 170; // Centro elevado
-    const r = 130;  // Raio reduzido para caber com folga
+    const cy = 175; // Centro ajustado para baixo para maximizar arco
+    const r = 145;  // Raio aumentado para aproveitar largura extra
     const startAngle = -180;
     const endAngle = 0;
     const totalAngle = endAngle - startAngle;
     
     // Rotação do Ponteiro
-    // Mapeia 0 -> 1.2 (percentage) para -180 -> 36 (se for linear alem de 100%)
-    // Vamos limitar visualmente o ponteiro a 180 graus (0 a 100%) ou deixar passar um pouco?
-    // Referencia visual: 120% max. 
-    // 100% = 0 deg (right). 120% = +36 deg (below horizon right).
-    // Para manter elegancia, vamos mapear 0-120% dentro do arco de 180? 
-    // Não, velocimetro real: 0% = esquerda, 100% = direita.
-    // Vamos usar escala 0 a 120% mapeada em 220 graus? 
-    // O pedido é "arco mais fino... desenho mais aberto". 
-    // Vamos usar Semi-Circulo Estrito (-180 a 0) onde 100% é o fim. 120% vai passar um pouco (overdrive).
-    const rotation = startAngle + (180 * Math.min(percentage, 1.2)); // Mapeia 0-100% em 180 graus. Se > 100, vai descendo.
+    // Mapeia 0 -> 1.2 (percentage) para -180 -> 36
+    const rotation = startAngle + (180 * Math.min(percentage, 1.2)); 
 
     // Estado para animação suave do número
     const [displayValue, setDisplayValue] = useState(0);
@@ -62,19 +54,15 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
     }
 
     // Path do Arco de Fundo (Semicirculo Perfeito)
-    // M (cx-r) cy A r r 0 1 1 (cx+r) cy
     const trackPath = `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy}`;
 
     // Calculo do Dasharray para o arco ativo
-    // Perímetro do semicirculo = PI * r
     const arcLength = Math.PI * r;
-    // O quanto preencher: percentage (max 1.0 para o arco visual, ou deixa ir até 1.2 se quiser)
-    // Se o arco é fixo 180 graus, visualmente ele enche até 100%.
     const fillAmount = Math.min(percentage, 1) * arcLength;
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-end">
-            <svg viewBox="0 0 400 220" className="w-full h-full overflow-visible">
+            <svg viewBox="0 0 400 230" className="w-full h-full overflow-visible">
                 <defs>
                     <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
@@ -96,17 +84,16 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                     d={trackPath}
                     fill="none"
                     stroke="#1f2937"
-                    strokeWidth="10" 
+                    strokeWidth="12" 
                     strokeLinecap="round"
                 />
 
                 {/* Ticks - Ajustados para o raio */}
                 {Array.from({ length: 7 }).map((_, i) => {
                     // 7 ticks para 0, 20, 40, 60, 80, 100, 120 (approx)
-                    // Distribuidos em 180 graus
                     const tickAngle = -180 + (i * (180 / 6));
                     return (
-                        <g key={i} transform={`translate(${cx}, ${cy}) rotate(${tickAngle}) translate(${r + 15}, 0)`}>
+                        <g key={i} transform={`translate(${cx}, ${cy}) rotate(${tickAngle}) translate(${r + 18}, 0)`}>
                             <rect 
                                 x={0} y={-1} 
                                 width={6} height={2} 
@@ -121,7 +108,7 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                     d={trackPath}
                     fill="none"
                     stroke="url(#gaugeGradient)"
-                    strokeWidth="10"
+                    strokeWidth="12"
                     strokeLinecap="round"
                     strokeDasharray={`${fillAmount} ${arcLength}`} 
                     className="transition-all duration-1000 ease-out opacity-80"
@@ -134,7 +121,7 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                 >
                     {/* Ponteiro afilado e longo */}
                     <path 
-                        d="M -4 0 L 0 -125 L 4 0 Z" 
+                        d="M -4 0 L 0 -135 L 4 0 Z" 
                         fill={zoneColor} 
                         filter="url(#glow)"
                     />
@@ -149,16 +136,15 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
             </svg>
 
             {/* Central Info - Reposicionado: FLUTUANDO ACIMA do centro */}
-            {/* Ajuste de bottom para descolar do eixo do ponteiro (cy=170 no svg de 220h -> 50px do bottom + offset) */}
-            <div className="absolute bottom-[60px] w-full text-center flex flex-col items-center pointer-events-none">
+            <div className="absolute bottom-[65px] w-full text-center flex flex-col items-center pointer-events-none">
                 <div className="flex items-baseline gap-1 relative mb-1">
                     <span 
-                        className="text-7xl font-display font-bold text-white transition-colors duration-500 tracking-tighter drop-shadow-2xl"
+                        className="text-8xl font-display font-bold text-white transition-colors duration-500 tracking-tighter drop-shadow-2xl"
                         style={{ textShadow: `0 0 30px ${glowColor}` }}
                     >
                         {Math.round(displayValue)}
                     </span>
-                    <span className="text-gray-500 text-xl font-medium relative -top-5">/ {target}</span>
+                    <span className="text-gray-500 text-2xl font-medium relative -top-6">/ {target}</span>
                 </div>
                 
                 <p className="text-neon-cyan/80 text-xs uppercase tracking-[0.2em] font-bold mb-2">{label}</p>

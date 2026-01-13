@@ -178,19 +178,19 @@ const Accelerator: React.FC = () => {
                 {/* Altura ajustada para 520px para conter melhor o gauge sem espaço morto excessivo */}
                 <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden h-[520px]">
                     
-                    {/* Header Centralizado (Absolute Top) */}
-                    <div className="absolute top-0 left-0 w-full pt-12 px-4 z-10 flex flex-col items-center text-center pointer-events-none">
+                    {/* Header: Posicionado no Canto Superior Esquerdo */}
+                    <div className="absolute top-10 left-10 z-20 flex flex-col items-start text-left pointer-events-none max-w-sm">
                         <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest mb-4 inline-block shadow-[0_0_15px_rgba(124,252,243,0.1)]">
                             Missão Ativa
                         </span>
-                        <h2 className="text-4xl font-bold text-white mb-2 font-display tracking-tight max-w-2xl line-clamp-1">{activeMission.title}</h2>
-                        <p className="text-base text-gray-400 max-w-xl line-clamp-2">{activeMission.description}</p>
+                        <h2 className="text-4xl font-bold text-white mb-2 font-display tracking-tight leading-none">{activeMission.title}</h2>
+                        <p className="text-sm text-gray-400 leading-relaxed">{activeMission.description}</p>
                     </div>
 
-                    {/* Gauge Central (Absolute) - Ancorado estrategicamente para leitura clara */}
-                    {/* Altura do container reduzida para 300px e width controlada */}
-                    <div className="absolute top-[180px] left-0 w-full flex justify-center h-[300px] pointer-events-none">
-                        <div className="w-[600px] h-full">
+                    {/* Gauge Central (Absolute) - Agora tem mais espaço central livre */}
+                    {/* Aumentei a largura para 700px e altura para 350px para preencher melhor o espaço */}
+                    <div className="absolute bottom-0 left-0 w-full flex justify-center items-end h-full pb-0 pointer-events-none">
+                        <div className="w-[700px] h-[380px] translate-y-4">
                             <Gauge current={activeCount} target={activeMission.target} label="Base Ativa Validada" />
                         </div>
                     </div>
