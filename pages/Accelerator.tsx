@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Gauge from '../components/Accelerator/Gauge';
 import { useUserStore } from '../store/useUserStore';
 import { useAcceleratorStore } from '../store/useAcceleratorStore';
-import { Rocket, Target, Users, Zap, TrendingUp, Edit2, Check, RotateCcw, Lock, Plus, Trash2, X, Save, Calendar, Clock, Trophy, Crown, ArrowRight, Star } from 'lucide-react';
+import { Rocket, Target, Users, Zap, TrendingUp, Edit2, Check, RotateCcw, Lock, Plus, Trash2, X, Save, Clock, Trophy, Crown, ArrowRight, Star } from 'lucide-react';
 import { useToastStore } from '../store/useToastStore';
 import { UserStatus, Mission } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,38 +56,6 @@ const Accelerator: React.FC = () => {
             setShowVictoryModal(true);
         }
     }, [activeCount, activeMission]);
-
-    // --- CÁLCULO TEMPORAL ---
-    const timeMetrics = useMemo(() => {
-        if (!activeMission.startDate) return null;
-        
-        const start = new Date(activeMission.startDate);
-        const end = new Date(start);
-        end.setMonth(start.getMonth() + activeMission.durationMonths);
-        
-        const now = new Date();
-        const totalDurationMs = end.getTime() - start.getTime();
-        const elapsedMs = now.getTime() - start.getTime();
-        
-        if (elapsedMs < 0) {
-            return {
-                daysRemaining: Math.ceil(totalDurationMs / (1000 * 60 * 60 * 24)),
-                progress: 0,
-                status: 'future',
-                endDate: end
-            };
-        }
-
-        const progress = Math.min(100, Math.max(0, (elapsedMs / totalDurationMs) * 100));
-        const daysRemaining = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        
-        return {
-            daysRemaining,
-            progress,
-            status: daysRemaining === 0 ? 'ended' : 'running',
-            endDate: end
-        };
-    }, [activeMission]);
 
     // --- OUTROS CÁLCULOS ---
     const healthMetric = useMemo(() => {
@@ -169,12 +137,9 @@ const Accelerator: React.FC = () => {
 
     // --- GAMIFICATION HANDLERS ---
     const handleAdvanceMission = () => {
-        // 1. Completar missão atual
         if (activeMissionId) {
             completeMission(activeMissionId);
         }
-
-        // 2. Encontrar próxima missão
         const currentIndex = missions.findIndex(m => m.id === activeMissionId);
         const nextMission = missions[currentIndex + 1];
 
@@ -184,13 +149,11 @@ const Accelerator: React.FC = () => {
         } else {
             addToast({ type: 'success', title: 'Zerou o Game!', message: 'Todas as missões foram concluídas. Hora de criar novas metas!' });
         }
-
         setShowVictoryModal(false);
     };
 
     const handleStayHere = () => {
         setShowVictoryModal(false);
-        // Apenas fecha o modal, a missão continua ativa (talvez queira "farmar" mais score antes de pular)
     };
 
     return (
@@ -211,50 +174,23 @@ const Accelerator: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-12 gap-6">
-                {/* --- MAIN GAUGE --- */}
-                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[500px] flex flex-col justify-between">
-                    <div className="flex justify-between items-start z-10 relative">
-                        <div className="flex-1 pr-8">
-                            <span className="px-2 py-1 rounded bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-wider mb-2 inline-block">
-                                Missão Ativa
-                            </span>
-                            <h2 className="text-2xl font-bold text-white">{activeMission.title}</h2>
-                            <p className="text-sm text-gray-400 max-w-md mt-1">{activeMission.description}</p>
-                            
-                            {timeMetrics && (
-                                <div className="mt-4 flex items-center gap-4 bg-white/5 p-3 rounded-lg border border-white/5 max-w-sm">
-                                    <div className="p-2 bg-white/5 rounded text-gray-400">
-                                        <Clock size={16} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="text-gray-400">Tempo de Missão</span>
-                                            <span className={`font-bold ${timeMetrics.daysRemaining < 30 ? 'text-yellow-500' : 'text-white'}`}>
-                                                {timeMetrics.daysRemaining} dias restantes
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full ${timeMetrics.progress > 80 ? 'bg-red-500' : 'bg-gray-500'} transition-all duration-1000`} 
-                                                style={{ width: `${timeMetrics.progress}%` }}
-                                            ></div>
-                                        </div>
-                                        <div className="flex justify-between mt-1">
-                                            <span className="text-[9px] text-gray-600">Início: {new Date(activeMission.startDate!).toLocaleDateString()}</span>
-                                            <span className="text-[9px] text-gray-600">Fim: {timeMetrics.endDate.toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs text-gray-500 uppercase tracking-widest">Alvo Trimestral</p>
-                            <p className="text-4xl font-display font-bold text-white">{activeMission.target}</p>
-                        </div>
+                {/* --- MAIN GAUGE (CENTERED & LARGER) --- */}
+                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[500px] flex flex-col items-center justify-center text-center">
+                    
+                    {/* Header Centralizado */}
+                    <div className="z-10 relative mb-8 max-w-2xl">
+                        <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest mb-4 inline-block">
+                            Missão Ativa
+                        </span>
+                        <h2 className="text-4xl font-bold text-white mb-2">{activeMission.title}</h2>
+                        <p className="text-base text-gray-400">{activeMission.description}</p>
                     </div>
 
-                    <div className="flex-1 flex items-end justify-center pb-8">
-                        <Gauge current={activeCount} target={activeMission.target} label="Base Ativa Validada" />
+                    {/* Gauge Central - RESTAURADO AQUI */}
+                    <div className="flex-1 w-full flex items-end justify-center pb-4">
+                        <div className="scale-110 transform origin-bottom">
+                            <Gauge current={activeCount} target={activeMission.target} label="Base Ativa Validada" />
+                        </div>
                     </div>
 
                     <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-neon-cyan/5 to-transparent pointer-events-none"></div>
@@ -304,6 +240,16 @@ const Accelerator: React.FC = () => {
                             const isCompleted = mission.status === 'completed';
                             const progress = Math.min(100, (activeCount / mission.target) * 100);
 
+                            // Calculate Days Remaining specifically for this card if active
+                            let daysLeft: number | null = null;
+                            if (isActive && mission.startDate) {
+                                const start = new Date(mission.startDate);
+                                const end = new Date(start);
+                                end.setMonth(start.getMonth() + mission.durationMonths);
+                                const now = new Date();
+                                daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                            }
+
                             return (
                                 <div key={mission.id} onClick={() => handleSelectMission(mission.id)} className={`relative p-5 rounded-xl border transition-all duration-300 cursor-pointer group overflow-hidden ${isActive ? 'bg-gradient-to-br from-neon-cyan/10 to-transparent border-neon-cyan/50 shadow-[0_0_20px_rgba(124,252,243,0.1)]' : isCompleted ? 'bg-neon-green/5 border-neon-green/20 opacity-60 hover:opacity-80' : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]'}`}>
                                     {isActive && <div className="absolute top-0 left-0 w-1 h-full bg-neon-cyan"></div>}
@@ -321,7 +267,19 @@ const Accelerator: React.FC = () => {
                                         <div className={`h-full ${isCompleted ? 'bg-neon-green' : isActive ? 'bg-neon-cyan' : 'bg-gray-600'}`} style={{ width: `${progress}%` }}></div>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] text-gray-500">
-                                        <span>{progress.toFixed(0)}% • {mission.durationMonths} meses</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span>{progress.toFixed(0)}%</span>
+                                            <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                                            <span>{mission.durationMonths} meses</span>
+                                            {daysLeft !== null && (
+                                                <>
+                                                    <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                                                    <span className={`font-bold flex items-center gap-1 ${daysLeft < 30 ? 'text-yellow-500' : 'text-neon-cyan'}`}>
+                                                        <Clock size={8} /> {daysLeft}d
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={(e) => handleOpenEdit(e, mission)} className="p-1 hover:text-white hover:bg-white/10 rounded"><Edit2 size={12} /></button>
                                             <button onClick={(e) => handleDelete(e, mission.id)} className="p-1 hover:text-red-400 hover:bg-red-500/10 rounded"><Trash2 size={12} /></button>
@@ -334,7 +292,7 @@ const Accelerator: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- MODAL DE VITÓRIA (GAMIFICAÇÃO) --- */}
+            {/* ... MODALS (Victory & Edit) stay the same ... */}
             <AnimatePresence>
                 {showVictoryModal && (
                     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
@@ -344,7 +302,6 @@ const Accelerator: React.FC = () => {
                             exit={{ scale: 0.5, opacity: 0 }}
                             className="relative w-full max-w-lg bg-[#0B0F1A] border-2 border-neon-cyan/50 rounded-2xl shadow-[0_0_100px_rgba(124,252,243,0.3)] overflow-hidden"
                         >
-                            {/* Efeito de Confete/Luz de Fundo */}
                             <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/20 via-transparent to-transparent pointer-events-none"></div>
                             
                             <div className="relative z-10 p-8 flex flex-col items-center text-center">
@@ -399,7 +356,6 @@ const Accelerator: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* --- MANAGEMENT MODAL --- */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-md bg-[#111625] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
