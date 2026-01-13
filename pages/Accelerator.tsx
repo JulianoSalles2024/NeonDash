@@ -175,20 +175,22 @@ const Accelerator: React.FC = () => {
 
             <div className="grid grid-cols-12 gap-6">
                 {/* --- MAIN GAUGE (CENTERED & LARGER) --- */}
-                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[500px] flex flex-col items-center justify-center text-center">
+                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[550px] flex flex-col items-center justify-between text-center pt-8">
                     
                     {/* Header Centralizado */}
-                    <div className="z-10 relative mb-8 max-w-2xl">
-                        <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest mb-4 inline-block">
-                            Missão Ativa
-                        </span>
-                        <h2 className="text-4xl font-bold text-white mb-2">{activeMission.title}</h2>
+                    <div className="z-10 relative max-w-2xl px-4">
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                            <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest inline-block">
+                                Missão Ativa
+                            </span>
+                        </div>
+                        <h2 className="text-4xl font-bold text-white mb-2 font-display tracking-tight">{activeMission.title}</h2>
                         <p className="text-base text-gray-400">{activeMission.description}</p>
                     </div>
 
-                    {/* Gauge Central - RESTAURADO AQUI */}
-                    <div className="flex-1 w-full flex items-end justify-center pb-4">
-                        <div className="scale-110 transform origin-bottom">
+                    {/* Gauge Central - MAXIMIZADO */}
+                    <div className="flex-1 w-full flex items-end justify-center pb-0 px-4 -mb-10">
+                        <div className="w-full">
                             <Gauge current={activeCount} target={activeMission.target} label="Base Ativa Validada" />
                         </div>
                     </div>
