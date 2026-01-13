@@ -49,7 +49,7 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
     }
 
     return (
-        <div className="relative w-full max-w-[850px] aspect-[2/1] mx-auto flex flex-col items-center justify-end pb-4">
+        <div className="relative w-full h-full flex flex-col items-center justify-end">
             {/* SVG Gauge */}
             <svg viewBox="0 0 400 220" className="w-full h-full overflow-visible">
                 <defs>
@@ -127,7 +127,7 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                 <text x="350" y="215" textAnchor="middle" fill="#6b7280" fontSize="16" fontWeight="bold">120%</text>
             </svg>
 
-            {/* Central Info - Aumentado Significativamente */}
+            {/* Central Info - Ancorado dentro do SVG visualmente */}
             <div className="absolute bottom-0 text-center flex flex-col items-center translate-y-6">
                 <div className="flex items-baseline gap-2 relative mb-1">
                     <span 
