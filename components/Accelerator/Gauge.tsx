@@ -16,13 +16,17 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
     const cx = 200;
     const cy = 175; // Centro ajustado para baixo para maximizar arco
     const r = 145;  // Raio aumentado para aproveitar largura extra
-    const startAngle = -180;
-    const endAngle = 0;
+    
+    // Ajuste de rotação para o ponteiro (que é desenhado apontando para CIMA/0deg)
+    // Para apontar para a Esquerda (-180deg visual), precisamos girar -90deg do topo.
+    // Para apontar para a Direita (0deg visual), precisamos girar +90deg do topo.
+    const startAngle = -90;
+    const endAngle = 90;
     const totalAngle = endAngle - startAngle;
     
     // Rotação do Ponteiro
-    // Mapeia 0 -> 1.2 (percentage) para -180 -> 36
-    const rotation = startAngle + (180 * Math.min(percentage, 1.2)); 
+    // Mapeia 0 -> 1.2 (percentage) para -90 -> +126
+    const rotation = startAngle + (totalAngle * Math.min(percentage, 1.2)); 
 
     // Estado para animação suave do número
     const [displayValue, setDisplayValue] = useState(0);
