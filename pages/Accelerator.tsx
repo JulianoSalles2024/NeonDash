@@ -175,30 +175,33 @@ const Accelerator: React.FC = () => {
 
             <div className="grid grid-cols-12 gap-6">
                 {/* --- MAIN GAUGE (FIXED LAYOUT) --- */}
-                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden h-[500px]">
+                {/* Aumentado min-height para garantir espaço vertical sem overflow */}
+                <Card className="col-span-12 xl:col-span-8 bg-gradient-to-b from-[#0B0F1A] to-[#111625] border-white/5 relative overflow-hidden min-h-[560px]">
                     
                     {/* Header Centralizado (Absolute Top) */}
-                    <div className="absolute top-0 left-0 w-full pt-10 px-4 z-10 flex flex-col items-center text-center">
-                        <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest mb-4 inline-block">
+                    <div className="absolute top-0 left-0 w-full pt-12 px-4 z-10 flex flex-col items-center text-center">
+                        <span className="px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 text-[10px] font-bold uppercase tracking-widest mb-4 inline-block shadow-[0_0_15px_rgba(124,252,243,0.1)]">
                             Missão Ativa
                         </span>
                         <h2 className="text-4xl font-bold text-white mb-2 font-display tracking-tight max-w-2xl line-clamp-1">{activeMission.title}</h2>
                         <p className="text-base text-gray-400 max-w-xl line-clamp-2">{activeMission.description}</p>
                     </div>
 
-                    {/* Gauge Central (Absolute Bottom) - TAMANHO FIXO E ANCORADO */}
-                    <div className="absolute bottom-0 left-0 w-full flex items-end justify-center pb-2">
-                        <div className="w-[600px] h-[300px]">
+                    {/* Gauge Central (Absolute Bottom) - TAMANHO AUMENTADO */}
+                    {/* Container ajustado para 650x360 para acomodar SVG sem cortes */}
+                    <div className="absolute bottom-0 left-0 w-full flex items-end justify-center pb-0">
+                        <div className="w-[650px] h-[360px]">
                             <Gauge current={activeCount} target={activeMission.target} label="Base Ativa Validada" />
                         </div>
                     </div>
 
-                    <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-neon-cyan/5 to-transparent pointer-events-none"></div>
+                    {/* Glow inferior sutil */}
+                    <div className="absolute bottom-0 left-0 w-full h-1/4 bg-gradient-to-t from-neon-cyan/5 to-transparent pointer-events-none"></div>
                 </Card>
 
                 {/* --- SIDEBAR STATS --- */}
                 <div className="col-span-12 xl:col-span-4 flex flex-col gap-6">
-                    <Card className="flex-1 flex flex-col justify-center relative overflow-hidden border-white/5 min-h-[238px]">
+                    <Card className="flex-1 flex flex-col justify-center relative overflow-hidden border-white/5 min-h-[268px]">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Users size={64} className="text-white" /></div>
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Target size={16} className="text-neon-purple"/> Saúde da Base</h3>
                         <div className="flex items-end gap-4 mb-2">
@@ -211,7 +214,7 @@ const Accelerator: React.FC = () => {
                         <p className="text-xs text-gray-400 leading-relaxed">{healthMetric > 80 ? "Base saudável. Maioria engajada." : "Atenção: Risco elevado na base."}</p>
                     </Card>
 
-                    <Card className="flex-1 flex flex-col justify-center relative overflow-hidden border-white/5 min-h-[238px]">
+                    <Card className="flex-1 flex flex-col justify-center relative overflow-hidden border-white/5 min-h-[268px]">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Zap size={64} className="text-neon-cyan" /></div>
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><TrendingUp size={16} className="text-neon-cyan"/> Velocidade (7d)</h3>
                         <div className="flex items-baseline gap-2 mb-2">

@@ -50,7 +50,7 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-end">
-            {/* SVG Gauge */}
+            {/* SVG Gauge - viewBox ligeiramente ajustado para garantir que nada seja cortado */}
             <svg viewBox="0 0 400 220" className="w-full h-full overflow-visible">
                 <defs>
                     <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -127,11 +127,11 @@ const Gauge: React.FC<GaugeProps> = ({ current, target, label }) => {
                 <text x="350" y="215" textAnchor="middle" fill="#6b7280" fontSize="16" fontWeight="bold">120%</text>
             </svg>
 
-            {/* Central Info - Ancorado dentro do SVG visualmente */}
-            <div className="absolute bottom-0 text-center flex flex-col items-center translate-y-6">
+            {/* Central Info - Reposicionado para FICAR ACIMA do eixo do ponteiro */}
+            <div className="absolute bottom-[85px] w-full text-center flex flex-col items-center pointer-events-none">
                 <div className="flex items-baseline gap-2 relative mb-1">
                     <span 
-                        className="text-8xl font-display font-bold text-white transition-colors duration-500 tracking-tighter"
+                        className="text-8xl font-display font-bold text-white transition-colors duration-500 tracking-tighter drop-shadow-lg"
                         style={{ textShadow: `0 0 40px ${glowColor}` }}
                     >
                         {Math.round(displayValue)}
