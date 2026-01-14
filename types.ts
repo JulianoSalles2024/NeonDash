@@ -57,6 +57,7 @@ export enum UserStatus {
     id: string;
     name: string;
     company: string;
+    phone?: string; // Novo campo de telefone
     email: string;
     avatar: string;
     status: UserStatus;

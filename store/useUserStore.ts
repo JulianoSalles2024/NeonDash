@@ -219,6 +219,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         name: u.name,
         email: u.email,
         company: u.company,
+        phone: u.phone, // Mapeado
         status: u.status as UserStatus,
         plan: u.plan,
         mrr: u.mrr,
@@ -275,6 +276,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           name: userData.name,
           email: userData.email,
           company: userData.company,
+          phone: userData.phone, // Inclui telefone
           status: userData.status,
           plan: userData.plan,
           mrr: userData.mrr,
@@ -298,6 +300,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         name: data.name,
         email: data.email,
         company: data.company,
+        phone: data.phone,
         status: data.status as UserStatus,
         plan: data.plan,
         mrr: data.mrr,
@@ -346,6 +349,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       if (changes.name !== undefined) dbPayload.name = changes.name;
       if (changes.company !== undefined) dbPayload.company = changes.company;
+      if (changes.phone !== undefined) dbPayload.phone = changes.phone; // Atualiza telefone
       if (changes.email !== undefined) dbPayload.email = changes.email;
       if (changes.status !== undefined) dbPayload.status = changes.status;
       if (changes.plan !== undefined) dbPayload.plan = changes.plan;

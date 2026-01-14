@@ -113,6 +113,7 @@ const UsersPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<User>>({
       name: '',
       company: '',
+      phone: '',
       email: '',
       plan: 'Starter',
       status: UserStatus.NEW,
@@ -218,11 +219,12 @@ const UsersPage: React.FC = () => {
 
   const handleExportCSV = () => {
       // Create CSV content
-      const headers = ['ID', 'Nome', 'Empresa', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Entrada', 'Teste'];
+      const headers = ['ID', 'Nome', 'Empresa', 'Telefone', 'Email', 'Status', 'Plano', 'Health Score', 'MRR', 'Entrada', 'Teste'];
       const rows = filteredUsers.map(u => [
           u.id,
           `"${u.name}"`,
           `"${u.company}"`,
+          `"${u.phone || ''}"`,
           u.email,
           u.status,
           u.plan,
@@ -260,6 +262,7 @@ const UsersPage: React.FC = () => {
       setFormData({
         name: '',
         company: '',
+        phone: '',
         email: '',
         plan: 'Starter',
         status: UserStatus.NEW,
@@ -284,7 +287,8 @@ const UsersPage: React.FC = () => {
           ...user, 
           isTest: !!user.isTest, 
           joinedAt: safeDate,
-          churnReason: user.churnReason || ''
+          churnReason: user.churnReason || '',
+          phone: user.phone || ''
       });
       setIsFormOpen(true);
   };
@@ -759,14 +763,26 @@ const UsersPage: React.FC = () => {
                                 placeholder="Ex: João Silva"
                             />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-gray-400 uppercase">Empresa</label>
-                            <input 
-                                type="text" name="company" required value={formData.company} onChange={handleChange}
-                                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors"
-                                placeholder="Ex: Acme Corp"
-                            />
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">Empresa</label>
+                                <input 
+                                    type="text" name="company" required value={formData.company} onChange={handleChange}
+                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors"
+                                    placeholder="Ex: Acme Corp"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-400 uppercase">WhatsApp / Telefone</label>
+                                <input 
+                                    type="text" name="phone" value={formData.phone} onChange={handleChange}
+                                    className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors"
+                                    placeholder="(99) 99999-9999"
+                                />
+                            </div>
                         </div>
+
                          <div className="space-y-1">
                             <label className="text-xs font-semibold text-gray-400 uppercase">Email</label>
                             <input 
