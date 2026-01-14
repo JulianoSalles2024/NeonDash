@@ -64,7 +64,7 @@ export enum UserStatus {
     metrics: UserHealthMetrics; // New detailed metrics
     lastActive: string;
     joinedAt: string; // Data de entrada/criação
-    plan: 'Starter' | 'Pro' | 'Enterprise'; 
+    plan: 'Starter' | 'Pro Creator' | 'Mentor Max'; 
     tokensUsed: number;
     mrr: number;
     isTest?: boolean; // Coluna dedicada no DB (is_test)

@@ -85,7 +85,7 @@ const Billing: React.FC = () => {
                         <h3 className="text-sm font-semibold text-gray-400 uppercase mb-4">Plano Atual</h3>
                         <div className="p-4 rounded-xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10">
                             <div className="flex justify-between items-start mb-2">
-                                <span className="px-2 py-1 bg-neon-cyan/10 text-neon-cyan text-xs font-bold rounded border border-neon-cyan/20">ENTERPRISE</span>
+                                <span className="px-2 py-1 bg-neon-cyan/10 text-neon-cyan text-xs font-bold rounded border border-neon-cyan/20">MENTOR MAX</span>
                                 <CreditCard className="text-gray-400" size={20} />
                             </div>
                             <p className="text-2xl font-bold text-white mt-2">R$ {basePlanCost.toLocaleString()}<span className="text-sm font-normal text-gray-500">/mês</span></p>

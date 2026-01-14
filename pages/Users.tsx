@@ -784,8 +784,8 @@ const UsersPage: React.FC = () => {
                                     className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:border-neon-cyan focus:outline-none transition-colors [&>option]:bg-dark-bg"
                                 >
                                     <option value="Starter">Starter</option>
-                                    <option value="Pro">Pro</option>
-                                    <option value="Enterprise">Enterprise</option>
+                                    <option value="Pro Creator">Pro Creator</option>
+                                    <option value="Mentor Max">Mentor Max</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
