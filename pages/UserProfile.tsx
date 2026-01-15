@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit, Megaphone, Timer, Printer, Calendar } from 'lucide-react';
+import { ArrowLeft, Mail, MoreHorizontal, Shield, Clock, AlertTriangle, CheckCircle, Info, LayoutDashboard, History, Zap, MessageSquare, DollarSign, Target, CheckSquare, Flag, Edit2, ChevronRight, Award, Bot, Sparkles, BrainCircuit, Megaphone, Timer, Printer, Calendar, Crown, Rocket, Trophy, User as UserIcon, Flame } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { COLORS } from '../constants';
@@ -10,6 +10,54 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip, CartesianGrid, XAxis, YA
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToastStore } from '../store/useToastStore';
 import { analyzeJourney } from '../services/ai';
+
+// --- RANKING LOGIC UTILS (Duplicated from RankingView for isolation) ---
+const STAGE_WEIGHTS: Record<string, number> = {
+    '1': 100, // Ativação
+    '2': 250, // Método
+    '3': 500, // Execução
+    '4': 800, // Valor Gerado
+    '5': 1000 // Escala
+};
+
+const calculateEngagementScore = (user: User): number => {
+    let score = 0;
+    score += (user.healthScore || 0) * 2;
+    if (user.journey?.steps) {
+        user.journey.steps.forEach(step => {
+            if (step.isCompleted) {
+                score += STAGE_WEIGHTS[step.id] || 50;
+            }
+        });
+    }
+    if (user.lastActive === 'Agora') score += 150;
+    else {
+        const lastActiveDate = new Date(user.lastActive);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 3600 * 24));
+        if (diffDays <= 1) score += 100;
+        else if (diffDays <= 3) score += 50;
+        else if (diffDays <= 7) score += 20;
+    }
+    if (user.mrr > 0) score += Math.min(200, user.mrr / 10);
+    return Math.round(score);
+};
+
+const getStageBadge = (user: User) => {
+    const steps = user.journey?.steps || [];
+    const completed = steps.filter(s => s.isCompleted);
+    const lastCompleted = completed.length > 0 ? completed[completed.length - 1] : null;
+
+    if (!lastCompleted) return { label: 'Setup', color: 'bg-gray-700 text-gray-300 border-gray-600', icon: Target };
+    
+    switch(lastCompleted.id) {
+        case '5': return { label: 'Escala / Upsell', color: 'bg-neon-purple/20 text-neon-purple border-neon-purple/40 shadow-[0_0_10px_rgba(155,92,255,0.3)]', icon: Rocket };
+        case '4': return { label: 'Valor Gerado', color: 'bg-neon-green/20 text-neon-green border-neon-green/40 shadow-[0_0_10px_rgba(52,255,176,0.3)]', icon: Trophy };
+        case '3': return { label: 'Execução', color: 'bg-neon-blue/20 text-neon-blue border-neon-blue/40', icon: Zap };
+        case '2': return { label: 'Método', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/40', icon: Target };
+        default: return { label: 'Ativação', color: 'bg-gray-700 text-white border-gray-500', icon: Target };
+    }
+};
 
 const UserProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +86,21 @@ const UserProfile: React.FC = () => {
           setTempGoal(user.journey.coreGoal);
       }
   }, [user]);
+
+  // --- RANKING CALCULATION ---
+  const rankingData = useMemo(() => {
+      if (!user) return { rank: 0, score: 0, total: 0 };
+      
+      const rankedUsers = users
+          .filter(u => u.status !== UserStatus.CHURNED && !u.isTest)
+          .map(u => ({ ...u, calculatedScore: calculateEngagementScore(u) }))
+          .sort((a, b) => b.calculatedScore - a.calculatedScore);
+          
+      const rank = rankedUsers.findIndex(u => u.id === user.id) + 1;
+      const score = calculateEngagementScore(user);
+      
+      return { rank, score, total: rankedUsers.length };
+  }, [users, user]);
 
   // --- AI ANALYSIS & STAGNATION CALCULATION ---
   useEffect(() => {
@@ -177,18 +240,11 @@ const UserProfile: React.FC = () => {
   const progressPercent = journey.steps.length > 0 ? (stepsCompleted / journey.steps.length) * 100 : 0;
 
   // --- REFINED ALERT LOGIC ---
-  // 1. Is Risk Status? (Manual Override)
   const isRiskStatus = user.status === UserStatus.RISK;
-  
-  // 2. High Inactivity (Priority Rule: > 10 days without access triggers alert REGARDLESS of journey updates)
   const isHighInactivity = daysInactive > 10;
-
-  // 3. Journey Stagnation (Only if active but stuck on a step)
   const isJourneyStalled = !isHighInactivity && daysStagnant > 15 && journey.status === 'in_progress';
-
   const showStagnationAlert = isRiskStatus || isHighInactivity || isJourneyStalled;
 
-  // Determine Message
   let alertMessage = '';
   let alertTitle = 'Alerta de Estagnação';
 
@@ -203,8 +259,6 @@ const UserProfile: React.FC = () => {
       alertMessage = `Este cliente acessa a plataforma, mas não avança na etapa atual há ${daysStagnant} dias.`;
   }
 
-  // LOGIC: Social Proof Candidate
-  // Rule: High Health Score (> 70) AND (Finished "Value Generated" step OR Finished Journey)
   const isSocialProofCandidate = user.healthScore > 70 && (
       journey.status === 'achieved' || 
       journey.steps.find(s => s.label.includes("Valor Gerado"))?.isCompleted
@@ -230,7 +284,6 @@ const UserProfile: React.FC = () => {
       
       if (completed === total) {
           newStatus = 'achieved';
-          // CELEBRAÇÃO QUANDO COMPLETA TUDO
           addToast({
               type: 'success',
               title: 'Jornada Concluída!',
@@ -247,7 +300,6 @@ const UserProfile: React.FC = () => {
       };
 
       await updateUser(user.id, { journey: updatedJourney });
-      // Trigger AI re-analysis implicitly by state update
   };
 
   const handleSaveGoal = async () => {
@@ -282,21 +334,6 @@ const UserProfile: React.FC = () => {
       const d = new Date(dateStr);
       return !isNaN(d.getTime()) ? d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : dateStr;
   };
-
-  const MetricPill = ({ label, value, color, icon: Icon }: any) => (
-    <div className="flex flex-col p-3 rounded-lg bg-white/5 border border-white/5 print:border-gray-200 print:bg-white">
-        <div className="flex justify-between items-start mb-2">
-            <span className={`p-1.5 rounded-md ${color.bg} ${color.text} print:bg-gray-100 print:text-black`}>
-                <Icon size={14} />
-            </span>
-            <span className="text-lg font-bold text-white font-mono print:text-black">{value}</span>
-        </div>
-        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden print:bg-gray-200">
-            <div className={`h-full ${color.bar} print:bg-black`} style={{width: `${value}%`}}></div>
-        </div>
-        <span className="text-[10px] text-gray-500 uppercase mt-2 print:text-gray-600">{label}</span>
-    </div>
-  );
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto pb-20 print:p-0 print:pb-0">
@@ -437,15 +474,47 @@ const UserProfile: React.FC = () => {
                 </Card>
 
                 <div className="col-span-1 md:col-span-2 lg:col-span-4 space-y-6">
-                    <Card>
-                        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Composição de Saúde</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <MetricPill label="Engajamento" value={metrics.engagement} icon={Zap} color={{bg: 'bg-neon-blue/10', text: 'text-neon-blue', bar: 'bg-neon-blue'}} />
-                            <MetricPill label="Suporte" value={metrics.support} icon={MessageSquare} color={{bg: 'bg-neon-green/10', text: 'text-neon-green', bar: 'bg-neon-green'}} />
-                            <MetricPill label="Financeiro" value={metrics.finance} icon={DollarSign} color={{bg: 'bg-neon-purple/10', text: 'text-neon-purple', bar: 'bg-neon-purple'}} />
-                            <MetricPill label="Risco (Churn)" value={metrics.risk} icon={AlertTriangle} color={{bg: 'bg-neon-pink/10', text: 'text-neon-pink', bar: 'bg-neon-pink'}} />
+                    {/* USER RANKING CARD (Replaces Composition) */}
+                    <div className={`
+                        relative flex flex-col items-center p-6 rounded-2xl border transition-all duration-300 group
+                        bg-gradient-to-b from-neon-cyan/20 to-[#0B0F1A] border-neon-cyan/50 shadow-[0_0_40px_rgba(124,252,243,0.15)]
+                    `}>
+                        {/* Rank Badge */}
+                        <div className="absolute -top-4 w-10 h-10 flex items-center justify-center rounded-full font-display font-bold text-lg border-2 bg-neon-cyan text-dark-bg border-white shadow-lg z-20">
+                            {rankingData.rank}
                         </div>
-                    </Card>
+
+                        {rankingData.rank <= 3 && <Crown size={32} className="text-yellow-400 absolute -top-14 animate-bounce z-10" />}
+
+                        {/* Avatar Container */}
+                        <div className="relative mb-3 mt-2">
+                            <div className="flex items-center justify-center rounded-full border-2 bg-gradient-to-b from-white/10 to-transparent w-20 h-20 border-neon-cyan shadow-[0_0_20px_rgba(124,252,243,0.2)]">
+                                <UserIcon size={40} className="text-neon-cyan" />
+                            </div>
+                            
+                            {user.status === 'Ativo' && <div className="absolute bottom-0 right-0 w-4 h-4 bg-neon-green border-2 border-dark-bg rounded-full shadow-[0_0_5px_#34FFB0]"></div>}
+                        </div>
+
+                        <h3 className="font-bold text-white text-center line-clamp-1 text-lg">{user.name}</h3>
+                        <p className="text-xs text-gray-400 mb-4">{user.company}</p>
+
+                        {(() => {
+                            const badge = getStageBadge(user);
+                            const BadgeIcon = badge.icon;
+                            return (
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border mb-4 ${badge.color}`}>
+                                    <BadgeIcon size={12} /> {badge.label}
+                                </div>
+                            );
+                        })()}
+
+                        <div className="mt-auto flex flex-col items-center">
+                            <span className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Engagement Score</span>
+                            <span className="font-display font-bold text-4xl text-neon-cyan drop-shadow-[0_0_10px_rgba(124,252,243,0.5)]">
+                                {rankingData.score}
+                            </span>
+                        </div>
+                    </div>
 
                     <Card className={`border ${user.healthScore < 40 ? 'border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent' : 'border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent'}`}>
                         <div className="flex items-start gap-3">
