@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Trophy, Crown, ChevronRight, Zap, Target, Flame, Rocket, Star } from 'lucide-react';
+import { Trophy, Crown, ChevronRight, Zap, Target, Flame, Rocket, Star, User as UserIcon } from 'lucide-react';
 import { User, UserStatus } from '../../types';
 import { useUserStore } from '../../store/useUserStore';
 import Card from '../ui/Card';
@@ -93,9 +93,22 @@ const PodiumCard = ({ user, rank, score, onClick }: { user: User, rank: number, 
 
             {isFirst && <Crown size={32} className="text-yellow-400 absolute -top-14 animate-bounce" />}
 
+            {/* Avatar Container */}
             <div className="relative mb-3 mt-2">
-                <img src={user.avatar} alt={user.name} className={`rounded-full object-cover border-2 ${isFirst ? 'w-20 h-20 border-neon-cyan' : 'w-16 h-16 border-white/20'}`} />
-                {user.status === 'Ativo' && <div className="absolute bottom-0 right-0 w-4 h-4 bg-neon-green border-2 border-dark-bg rounded-full"></div>}
+                <div className={`
+                    flex items-center justify-center rounded-full border-2 bg-gradient-to-b from-white/10 to-transparent
+                    ${isFirst 
+                        ? 'w-20 h-20 border-neon-cyan shadow-[0_0_20px_rgba(124,252,243,0.2)]' 
+                        : 'w-16 h-16 border-white/20'
+                    }
+                `}>
+                    <UserIcon 
+                        size={isFirst ? 40 : 32} 
+                        className={isFirst ? 'text-neon-cyan' : 'text-gray-400'} 
+                    />
+                </div>
+                
+                {user.status === 'Ativo' && <div className="absolute bottom-0 right-0 w-4 h-4 bg-neon-green border-2 border-dark-bg rounded-full shadow-[0_0_5px_#34FFB0]"></div>}
             </div>
 
             <h3 className="font-bold text-white text-center line-clamp-1">{user.name}</h3>
@@ -186,7 +199,11 @@ const RankingView: React.FC = () => {
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
-                                                <img src={user.avatar} className="w-8 h-8 rounded-full bg-gray-800" alt="" />
+                                                {/* LISTA TAMBÉM USA O ÍCONE PADRÃO AGORA PARA CONSISTÊNCIA */}
+                                                <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                                                    <UserIcon size={16} className="text-gray-400" />
+                                                </div>
+                                                
                                                 {user.score > 1500 && (
                                                     <div className="absolute -top-1 -right-1 text-yellow-400 bg-black rounded-full p-0.5 border border-yellow-400" title="Alta Performance">
                                                         <Flame size={8} fill="currentColor" />
