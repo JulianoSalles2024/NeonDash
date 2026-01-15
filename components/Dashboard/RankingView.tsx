@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Trophy, Crown, ChevronRight, Zap, Target, Flame, Rocket, Star, User as UserIcon } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Trophy, Crown, ChevronRight, Zap, Target, Flame, Rocket, Star, User as UserIcon, ChevronLeft } from 'lucide-react';
 import { User, UserStatus } from '../../types';
 import { useUserStore } from '../../store/useUserStore';
 import Card from '../ui/Card';
@@ -13,6 +13,8 @@ const STAGE_WEIGHTS: Record<string, number> = {
     '4': 800, // Valor Gerado
     '5': 1000 // Escala
 };
+
+const ITEMS_PER_PAGE = 10;
 
 const calculateEngagementScore = (user: User): number => {
     let score = 0;
@@ -131,8 +133,9 @@ const PodiumCard = ({ user, rank, score, onClick }: { user: User, rank: number, 
 const RankingView: React.FC = () => {
     const navigate = useNavigate();
     const { users } = useUserStore();
+    const [currentPage, setCurrentPage] = useState(1);
 
-    // Lógica de Ranking
+    // Lógica de Ranking Global (Todos os usuários rankeados)
     const rankedUsers = useMemo(() => {
         return users
             .filter(u => u.status !== UserStatus.CHURNED && !u.isTest) // Apenas usuários reais e ativos/risco
@@ -140,8 +143,25 @@ const RankingView: React.FC = () => {
             .sort((a, b) => b.score - a.score);
     }, [users]);
 
-    const top3 = rankedUsers.slice(0, 3);
-    const rest = rankedUsers.slice(3);
+    // Paginação
+    const totalPages = Math.ceil(rankedUsers.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    // Pega os itens da página atual (ex: 0 a 10 para página 1)
+    const pageData = rankedUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Lógica de Exibição
+    // Se página 1: Separa Top 3 para o Pódio e Resto (7) para a lista
+    // Se página > 1: Todos os 10 vão para a lista
+    const isFirstPage = currentPage === 1;
+    const podiumUsers = isFirstPage ? pageData.slice(0, 3) : [];
+    const listUsers = isFirstPage ? pageData.slice(3) : pageData;
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            // Scroll suave para o topo do componente se necessário (opcional)
+        }
+    };
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in duration-500">
@@ -162,12 +182,12 @@ const RankingView: React.FC = () => {
                 </div>
             </div>
 
-            {/* PODIUM SECTION */}
-            {top3.length > 0 && (
+            {/* PODIUM SECTION (ONLY ON PAGE 1) */}
+            {isFirstPage && podiumUsers.length > 0 && (
                 <div className="flex justify-center gap-4 md:gap-8 min-h-[320px] px-4">
-                    {top3[1] && <PodiumCard user={top3[1]} rank={2} score={top3[1].score} onClick={() => navigate(`/users/${top3[1].id}`)} />}
-                    {top3[0] && <PodiumCard user={top3[0]} rank={1} score={top3[0].score} onClick={() => navigate(`/users/${top3[0].id}`)} />}
-                    {top3[2] && <PodiumCard user={top3[2]} rank={3} score={top3[2].score} onClick={() => navigate(`/users/${top3[2].id}`)} />}
+                    {podiumUsers[1] && <PodiumCard user={podiumUsers[1]} rank={2} score={podiumUsers[1].score} onClick={() => navigate(`/users/${podiumUsers[1].id}`)} />}
+                    {podiumUsers[0] && <PodiumCard user={podiumUsers[0]} rank={1} score={podiumUsers[0].score} onClick={() => navigate(`/users/${podiumUsers[0].id}`)} />}
+                    {podiumUsers[2] && <PodiumCard user={podiumUsers[2]} rank={3} score={podiumUsers[2].score} onClick={() => navigate(`/users/${podiumUsers[2].id}`)} />}
                 </div>
             )}
 
@@ -185,10 +205,15 @@ const RankingView: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {rest.map((user, idx) => {
+                        {listUsers.map((user, idx) => {
                             const badge = getStageBadge(user);
                             const BadgeIcon = badge.icon;
-                            const rank = idx + 4;
+                            
+                            // Calcula rank absoluto
+                            // Se pag 1: rank = idx + 1 (podium) + 3 (offset) = idx + 4
+                            // Se pag > 1: rank = startIndex + idx + 1
+                            const rank = isFirstPage ? (idx + 4) : (startIndex + idx + 1);
+                            
                             const stepsCompleted = user.journey?.steps.filter(s => s.isCompleted).length || 0;
                             const totalSteps = user.journey?.steps.length || 5;
                             const progress = (stepsCompleted / totalSteps) * 100;
@@ -199,7 +224,6 @@ const RankingView: React.FC = () => {
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
-                                                {/* LISTA TAMBÉM USA O ÍCONE PADRÃO AGORA PARA CONSISTÊNCIA */}
                                                 <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
                                                     <UserIcon size={16} className="text-gray-400" />
                                                 </div>
@@ -242,6 +266,42 @@ const RankingView: React.FC = () => {
                         })}
                     </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="p-4 border-t border-white/5 flex justify-between items-center bg-white/[0.01]">
+                        <span className="text-xs text-gray-500">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className={`p-2 rounded-lg border border-transparent transition-colors ${currentPage === 1 ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/10'}`}
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <div className="flex gap-1">
+                                {Array.from({ length: totalPages }).slice(0, 5).map((_, i) => (
+                                    <button 
+                                        key={i + 1}
+                                        onClick={() => handlePageChange(i + 1)}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === i + 1 ? 'bg-neon-cyan text-dark-bg' : 'text-gray-500 hover:bg-white/5'}`}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ))}
+                            </div>
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className={`p-2 rounded-lg border border-transparent transition-colors ${currentPage === totalPages ? 'text-gray-700 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/10'}`}
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </Card>
         </div>
     );
