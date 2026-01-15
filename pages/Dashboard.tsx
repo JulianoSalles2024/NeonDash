@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HealthScore from '../components/Dashboard/HealthScore';
 import MetricCard from '../components/Dashboard/MetricCard';
-// import AIStrip from '../components/Dashboard/AIStrip'; // Removed import
 import Card from '../components/ui/Card';
 import PageTransition from '../components/ui/PageTransition';
 import { COLORS } from '../constants';
@@ -12,12 +11,12 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Server, Pause, Play, Trash2, CheckCircle, Flag, Target, ArrowRight, AlertCircle, Lightbulb, TrendingUp, Gem } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Target, Gem, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
-// RetentionChart removed from Dashboard to keep only in Retention page
+import RankingView from '../components/Dashboard/RankingView';
 
 const Dashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'focus'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'focus' | 'ranking'>('overview');
   const navigate = useNavigate();
   
   // Real-time Event Stream Hook
@@ -187,31 +186,6 @@ const Dashboard: React.FC = () => {
     refetchInterval: 30000, 
   });
 
-  // --- REAL-TIME STREAM ANALYTICS ---
-  const streamAnalytics = useMemo(() => {
-      const critical = events.filter(e => e.level === 'critical').length;
-      const warning = events.filter(e => e.level === 'warning').length;
-      
-      // Calculate Top Sources for Errors/Warnings
-      const sourceCounts: Record<string, number> = {};
-      events.forEach(e => {
-          if (e.level === 'critical' || e.level === 'warning') {
-              sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
-          }
-      });
-
-      const topSources = Object.entries(sourceCounts)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, 3)
-          .map(([name, count], _, arr) => ({
-              name,
-              count,
-              percent: (count / (arr[0]?.[1] || 1)) * 100 // Relative to biggest bar
-          }));
-
-      return { critical, warning, topSources };
-  }, [events]);
-
   const isLoading = isUsersLoading || isMetricsLoading;
 
   return (
@@ -236,6 +210,12 @@ const Dashboard: React.FC = () => {
                 Visão Geral
             </button>
             <button 
+                onClick={() => setActiveTab('ranking')}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'ranking' ? 'bg-yellow-500/20 text-yellow-500 shadow-sm border border-yellow-500/10' : 'text-gray-400 hover:text-white'}`}
+            >
+                <Trophy size={14} /> Ranking
+            </button>
+            <button 
                 onClick={() => setActiveTab('focus')}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'focus' ? 'bg-red-500/20 text-red-400 shadow-sm border border-red-500/10' : 'text-gray-400 hover:text-white'}`}
             >
@@ -243,12 +223,12 @@ const Dashboard: React.FC = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>}
-                Modo Foco: Crítico
+                Modo Foco
             </button>
         </div>
       </div>
 
-      {activeTab === 'overview' ? (
+      {activeTab === 'overview' && (
         /* --- OVERVIEW TAB CONTENT --- */
         <motion.div 
             key="overview"
@@ -302,8 +282,9 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* --- BOTTOM ROW --- */}
+            
             {/* Journey Distribution (Left) */}
-            <Card className="col-span-1 md:col-span-1 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
+            <Card className="col-span-1 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
                 <div className="flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -321,263 +302,87 @@ const Dashboard: React.FC = () => {
                             <span className="text-neon-green font-bold text-base">{journeyStats.achieved.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-green shadow-[0_0_10px_rgba(52,255,176,0.5)] transition-all duration-1000" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
+                            <div className="h-full bg-neon-green" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
                         </div>
                     </div>
 
                     {/* In Progress */}
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-gray-300">Em Progresso</span>
+                            <span className="text-white font-medium">Em Jornada</span>
                             <span className="text-neon-blue font-bold text-base">{journeyStats.inProgress.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-blue transition-all duration-1000" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
+                            <div className="h-full bg-neon-blue" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
                         </div>
                     </div>
 
                     {/* Not Started */}
                     <div>
                         <div className="flex justify-between text-sm mb-2">
-                            <span className="text-gray-500">Setup</span>
+                            <span className="text-white font-medium">Setup Pendente</span>
                             <span className="text-gray-400 font-bold text-base">{journeyStats.notStarted.count}</span>
                         </div>
                         <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-gray-600 transition-all duration-1000" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
+                            <div className="h-full bg-gray-600" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
                         </div>
                     </div>
                 </div>
             </Card>
 
-            {/* --- NEW: DIAGNÓSTICO DE FRICÇÃO (UPDATED CARD STYLE) --- */}
-            <div className="col-span-1 md:col-span-3">
-                <Card className="h-full flex flex-col justify-center border-white/5 bg-white/[0.01]">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-white/5 rounded-lg text-white">
-                            <Lightbulb size={20} className="text-yellow-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-white">Funil de Fricção & Oportunidade</h3>
-                            <p className="text-xs text-gray-500">Distribuição da base por etapa <span className="text-white font-bold">concluída (marcada)</span>.</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {frictionStats.map((stat, idx) => (
-                            <div key={stat.id} className="relative flex flex-col group">
-                                {/* Connector Line */}
-                                {idx < frictionStats.length - 1 && (
-                                    <div className="hidden md:block absolute top-1/2 -right-6 w-8 h-0.5 bg-white/10 -translate-y-1/2 z-0">
-                                        <div className="absolute right-0 -top-1 text-white/10"><ArrowRight size={12} /></div>
-                                    </div>
-                                )}
-
-                                <div className={`
-                                    relative z-10 p-5 rounded-xl border transition-all duration-300 h-full flex flex-col justify-between overflow-hidden cursor-pointer
-                                    ${stat.containerClass}
-                                `}>
-                                    {/* Accent Side Bar */}
-                                    <div className={`absolute top-0 left-0 w-1 h-full ${stat.accentClass} opacity-80`}></div>
-
-                                    <div>
-                                        <div className="flex justify-between items-start mb-2 pl-2">
-                                            <span className={`text-xs font-bold uppercase tracking-wider ${stat.color}`}>{stat.label}</span>
-                                            {/* Icon Logic */}
-                                            <stat.icon size={16} className={stat.color} />
-                                        </div>
-                                        
-                                        {stat.special && stat.count > 0 && (
-                                            <div className="mb-2 ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-neon-green text-dark-bg text-[10px] font-bold uppercase tracking-wide animate-pulse">
-                                                <TrendingUp size={10} /> Oportunidade Upsell
-                                            </div>
-                                        )}
-
-                                        <p className="text-sm font-bold text-white mb-1 flex items-center gap-2 pl-2">
-                                            {stat.insight}
-                                        </p>
-                                        <p className="text-[10px] text-gray-400 leading-tight mb-4 pl-2 opacity-80">{stat.desc}</p>
-                                    </div>
-
-                                    <div className="pl-2">
-                                        <div className="flex items-end gap-2 mb-2">
-                                            <span className="text-3xl font-display font-bold text-white">{stat.count}</span>
-                                            <span className="text-xs text-gray-500 mb-1">usuários</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                            <div 
-                                                className={`h-full ${stat.barClass} transition-all duration-1000`} 
-                                                style={{ width: `${Math.max(5, stat.percent)}%` }} // Min 5% visual
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
+            {/* Right Side: Friction Cards Grid */}
+            <div className="col-span-1 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {frictionStats.map((stat) => (
+                    <div 
+                        key={stat.id}
+                        className={`
+                            relative flex flex-col p-5 rounded-xl border transition-all duration-300 group
+                            ${stat.containerClass}
+                        `}
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-2 rounded-lg ${stat.color} bg-black/20`}>
+                                <stat.icon size={20} />
                             </div>
-                        ))}
-                    </div>
-                </Card>
-            </div>
-
-        </motion.div>
-      ) : (
-        /* --- FOCUS MODE TAB CONTENT --- */
-        <motion.div 
-            key="focus"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col gap-8"
-        >
-            {/* ... Focus Content (Same as before) ... */}
-            <div className="w-full">
-                <div className="flex justify-between items-center mb-4 px-2">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                        Stream em Tempo Real
-                        </h3>
-                        <div className="flex gap-2">
-                            <button 
-                            onClick={() => setIsPaused(!isPaused)}
-                            className={`flex items-center gap-2 text-xs text-gray-400 hover:text-white px-3 py-1 bg-white/5 rounded border border-transparent hover:border-white/10 transition-all ${isPaused ? 'bg-yellow-500/10 text-yellow-500' : ''}`}
-                            >
-                            {isPaused ? <Play size={12} /> : <Pause size={12} />}
-                            {isPaused ? 'Retomar' : 'Pausar'}
-                            </button>
-                            <button 
-                            onClick={clearResolved}
-                            className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-400 px-3 py-1 bg-white/5 rounded border border-transparent hover:border-white/10 transition-all"
-                            >
-                            <Trash2 size={12} /> Limpar
-                            </button>
+                            <span className={`text-2xl font-display font-bold ${stat.color}`}>{stat.count}</span>
                         </div>
-                </div>
-
-                <div className="relative min-h-[500px] max-h-[600px] overflow-y-auto scrollbar-hide bg-white/[0.01] rounded-xl border border-white/5 p-4">
-                    {events.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-gray-500 opacity-60">
-                            <Activity size={48} className="mb-4" />
-                            <p>Aguardando eventos do sistema...</p>
-                        </div>
-                    )}
-                    <AnimatePresence initial={false}>
-                        {events.map((event) => {
-                            const isCritical = event.level === 'critical';
-                            const isWarning = event.level === 'warning';
-                            const isSuccess = event.level === 'success';
+                        
+                        <div className="mt-auto">
+                            <h4 className={`text-sm font-bold text-white mb-1 ${stat.special ? 'text-neon-green' : ''}`}>{stat.label}</h4>
+                            <p className="text-[10px] text-gray-400 leading-tight mb-3 min-h-[2.5em]">{stat.desc}</p>
                             
-                            return (
-                                <motion.div 
-                                    key={event.id}
-                                    layout
-                                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                                    transition={{ duration: 0.3 }}
-                                    className={`
-                                        group flex flex-col md:flex-row items-start md:items-center gap-4 p-5 rounded-xl border backdrop-blur-md mb-3
-                                        ${isCritical 
-                                            ? 'bg-red-500/[0.03] border-red-500/20 hover:bg-red-500/[0.06]' 
-                                            : isWarning
-                                                ? 'bg-yellow-500/[0.03] border-yellow-500/20 hover:bg-yellow-500/[0.06]'
-                                                : isSuccess 
-                                                    ? 'bg-neon-green/[0.03] border-neon-green/20 hover:bg-neon-green/[0.06]'
-                                                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
-                                        }
-                                    `}
-                                >
-                                    <div className={`
-                                        p-3 rounded-lg shrink-0
-                                        ${isCritical ? 'bg-red-500/10 text-red-500' : isWarning ? 'bg-yellow-500/10 text-yellow-500' : isSuccess ? 'bg-neon-green/10 text-neon-green' : 'bg-neon-blue/10 text-neon-blue'}
-                                    `}>
-                                        {isCritical ? <AlertTriangle size={24} /> : isWarning ? <Zap size={24} /> : isSuccess ? <CheckCircle size={24} /> : <Server size={24} />}
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-1">
-                                            <h4 className={`font-bold ${isCritical ? 'text-red-400' : isWarning ? 'text-yellow-400' : isSuccess ? 'text-neon-green' : 'text-white'}`}>
-                                                {event.title}
-                                            </h4>
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/10 text-gray-400 border border-white/5 uppercase">
-                                                {event.source}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-gray-300 leading-relaxed">{event.description}</p>
-                                        <p className="text-xs text-gray-500 mt-2 font-mono flex items-center gap-2">
-                                            {event.timestamp} • ID: #{event.id.slice(-6)}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto mt-4 md:mt-0">
-                                        {event.action && (
-                                            <button className={`
-                                                px-4 py-2 text-xs font-bold uppercase tracking-wider rounded border transition-colors
-                                                ${isCritical 
-                                                    ? 'bg-red-500 text-white border-red-500 hover:bg-red-600' 
-                                                    : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'}
-                                            `}>
-                                                {event.action}
-                                            </button>
-                                        )}
-                                        <button className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded border border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5">
-                                            Ignorar
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="border-red-500/30 bg-red-500/5 hover:border-red-500/50 transition-colors">
-                        <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 rounded bg-red-500/20 text-red-500"><AlertTriangle size={20} /></div>
-                                <span className="text-sm font-bold text-red-400 uppercase">Críticos</span>
-                        </div>
-                        <p className="text-4xl font-display font-bold text-white mt-4">{streamAnalytics.critical}</p>
-                        <p className="text-xs text-red-300 mt-1">Requerem ação imediata</p>
-                    </Card>
-
-                    <Card className="border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50 transition-colors">
-                        <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 rounded bg-yellow-500/20 text-yellow-500"><Activity size={20} /></div>
-                                <span className="text-sm font-bold text-yellow-500 uppercase">Avisos</span>
-                        </div>
-                        <p className="text-4xl font-display font-bold text-white mt-4">{streamAnalytics.warning}</p>
-                        <p className="text-xs text-yellow-300 mt-1">Monitorar de perto</p>
-                    </Card>
-                    
-                    <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02]">
-                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-6">Fontes de Erro (Top 3)</h3>
-                        <div className="space-y-4">
-                            {streamAnalytics.topSources.length === 0 ? (
-                                <div className="text-center text-gray-500 py-4 text-xs">
-                                    Nenhum erro recente detectado.
-                                </div>
-                            ) : (
-                                streamAnalytics.topSources.map((source, idx) => (
-                                    <div key={source.name}>
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-gray-300">{source.name}</span> 
-                                            <span className={`${idx === 0 ? 'text-red-400' : 'text-gray-400'} font-mono`}>{source.count}</span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-white/10 rounded-full">
-                                            <div 
-                                                className={`h-full rounded-full ${idx === 0 ? 'bg-red-500/50' : idx === 1 ? 'bg-yellow-500/50' : 'bg-blue-500/50'}`} 
-                                                style={{ width: `${source.percent}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
+                            <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full transition-all duration-1000 ${stat.barClass}`} 
+                                    style={{ width: `${stat.percent}%` }}
+                                ></div>
+                            </div>
                         </div>
                     </div>
+                ))}
             </div>
         </motion.div>
+      )}
+
+      {activeTab === 'ranking' && (
+          <RankingView />
+      )}
+
+      {activeTab === 'focus' && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="flex flex-col items-center justify-center min-h-[400px] text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.01]"
+          >
+              <div className="p-4 rounded-full bg-red-500/10 mb-4 animate-pulse">
+                  <Target size={48} className="text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Modo Foco Ativo</h3>
+              <p className="text-gray-500 max-w-md mt-2">
+                  Esta visualização remove distrações e mostra apenas métricas críticas em tempo real.
+                  <br/><span className="text-xs text-gray-600">(Funcionalidade em desenvolvimento)</span>
+              </p>
+          </motion.div>
       )}
     </PageTransition>
   );
