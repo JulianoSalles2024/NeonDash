@@ -47,7 +47,19 @@ const CHURN_REASONS = [
     "Churn Manual"
 ];
 
-// Helper Component para Badge de Jornada Dinâmica
+// Helper para extrair etapa atual textual para relatório
+const getCurrentStageText = (journey?: SuccessJourney) => {
+    if (!journey || journey.status === 'not_started') return 'Setup Pendente';
+    if (journey.status === 'achieved') return 'Concluído (Sucesso)';
+    
+    const completedSteps = journey.steps.filter(s => s.isCompleted);
+    if (completedSteps.length > 0) {
+        return completedSteps[completedSteps.length - 1].label;
+    }
+    return 'Onboarding';
+};
+
+// Helper Component para Badge de Jornada Dinâmica (Visualização em Tela)
 const JourneyBadge = ({ journey }: { journey?: SuccessJourney }) => {
     if (!journey || journey.status === 'not_started') {
         return (
@@ -429,6 +441,8 @@ const UsersPage: React.FC = () => {
                 min-height: auto !important;
                 overflow: visible !important;
                 display: block !important;
+                background: white !important;
+                color: black !important;
             }
 
             /* ESCONDER TUDO DA TELA */
@@ -483,7 +497,7 @@ const UsersPage: React.FC = () => {
                     onClick={handlePrint}
                     className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
                 >
-                    <Printer size={16} /> PDF
+                    <Printer size={16} /> Relatório Analítico
                 </button>
                 <button 
                     onClick={handleAddNew}
@@ -1017,81 +1031,71 @@ const UsersPage: React.FC = () => {
         )}
     </div>
 
-    {/* --- PRINT ONLY LAYOUT (Relatório Geral) --- */}
-    <div id="print-area" className="hidden print:block w-full h-auto bg-white z-[9999] p-8 text-black">
-        <div className="text-center mb-8 border-b-2 border-black pb-4">
-            <h1 className="text-3xl font-bold uppercase tracking-wider">Relatório de Base de Clientes</h1>
-            <p className="text-gray-600 mt-2">
-                Gerado em {new Date().toLocaleDateString()} • {filteredUsers.length} registros
-            </p>
+    {/* --- PRINT ONLY LAYOUT (Relatório Analítico em Tabela) --- */}
+    <div id="print-area" className="hidden print:block w-full bg-white text-black p-0 m-0">
+        {/* Header */}
+        <div className="mb-6 border-b-2 border-black pb-2 flex justify-between items-end">
+            <div>
+                <h1 className="text-xl font-bold font-sans uppercase">Relatório Analítico de Clientes</h1>
+                <p className="text-xs text-gray-500">NEONDASH ANALYTICS</p>
+            </div>
+            <div className="text-right text-xs">
+                <p>Gerado em: {new Date().toLocaleString()}</p>
+                <p>Total de Registros: {filteredUsers.length}</p>
+            </div>
         </div>
 
-        <div className="space-y-6">
-            {filteredUsers.map((u, index) => (
-                <div key={u.id} className="break-inside-avoid page-break-inside-avoid border border-gray-300 rounded-lg p-5 bg-gray-50 mb-4 shadow-none">
-                    {/* Header info */}
-                    <div className="flex justify-between items-start mb-4 border-b border-gray-200 pb-3">
-                        <div>
-                            <h2 className="text-xl font-bold">{u.name}</h2>
-                            <p className="text-sm text-gray-600">{u.company} • {u.email}</p>
-                        </div>
-                        <div className="text-right">
-                            <span className="inline-block px-2 py-1 border border-black rounded text-xs font-bold uppercase mb-1">
-                                {u.status}
-                            </span>
-                            <p className="text-xs text-gray-500">ID: {u.id.slice(0,8)}</p>
-                        </div>
-                    </div>
-
-                    {/* Metrics */}
-                    <div className="grid grid-cols-4 gap-4 mb-4 text-sm">
-                        <div>
-                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Plano</p>
-                            <p className="font-semibold">{u.plan}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Valor Mensal</p>
-                            <p className="font-bold text-lg text-black">R$ {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Health Score</p>
-                            <p className="font-semibold">{u.healthScore}/100</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">Entrada</p>
-                            <p className="font-semibold">{new Date(u.joinedAt).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-
-                    {/* Journey Steps Compact */}
-                    <div className="bg-white border border-gray-200 rounded p-4">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
-                            <Flag size={12}/> Detalhes da Jornada
-                        </p>
-                        {u.journey ? (
-                            <div className="space-y-2">
-                                <p className="text-sm font-bold mb-2">Objetivo: {u.journey.coreGoal}</p>
-                                <div className="grid grid-cols-5 gap-2">
-                                    {u.journey.steps.map((step, sIdx) => (
-                                        <div key={sIdx} className={`text-center p-2 rounded border ${step.isCompleted ? 'bg-gray-100 border-gray-400' : 'border-gray-100'}`}>
-                                            <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${step.isCompleted ? 'bg-black' : 'bg-gray-200'}`}></div>
-                                            <p className={`text-[9px] uppercase leading-tight ${step.isCompleted ? 'font-bold text-black' : 'text-gray-400'}`}>
-                                                {step.label} 
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-xs text-gray-400 italic">Jornada não iniciada.</p>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
+        {/* Table */}
+        <table className="w-full text-left border-collapse text-[10px] font-sans">
+            <thead>
+                <tr className="border-b border-black">
+                    <th className="py-1 pr-2 font-bold uppercase w-[20%]">Cliente / Empresa</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[15%]">Email</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[10%]">Plano</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[8%] text-right">R$ MRR</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[5%] text-center">Score</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[8%]">Status</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[8%]">Entrada</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[15%]">Objetivo Principal</th>
+                    <th className="py-1 font-bold uppercase w-[11%]">Etapa Atual</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+                {filteredUsers.map((u) => (
+                    <tr key={u.id} className="break-inside-avoid">
+                        <td className="py-1.5 pr-2 align-top">
+                            <div className="font-bold text-black">{u.name}</div>
+                            <div className="text-gray-500 truncate">{u.company}</div>
+                        </td>
+                        <td className="py-1.5 pr-2 align-top text-gray-700 truncate max-w-[150px]">{u.email}</td>
+                        <td className="py-1.5 pr-2 align-top text-gray-700">{u.plan}</td>
+                        <td className="py-1.5 pr-2 align-top text-right font-mono">
+                            {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1.5 pr-2 align-top text-center font-mono font-bold">
+                            {u.healthScore}
+                        </td>
+                        <td className="py-1.5 pr-2 align-top uppercase text-[9px] font-bold">
+                            {u.status}
+                        </td>
+                        <td className="py-1.5 pr-2 align-top">
+                            {new Date(u.joinedAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-1.5 pr-2 align-top text-gray-600 italic truncate max-w-[150px]">
+                            {u.journey?.coreGoal || '-'}
+                        </td>
+                        <td className="py-1.5 align-top font-medium text-gray-800">
+                            {getCurrentStageText(u.journey)}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
         
-        <div className="mt-8 text-center text-xs text-gray-400 border-t pt-4">
-            Fim do Relatório • NEONDASH
+        {/* Footer */}
+        <div className="mt-4 pt-2 border-t border-black text-[8px] text-gray-400 flex justify-between">
+            <span>CONFIDENCIAL • USO INTERNO</span>
+            <span>Relatório NEONDASH</span>
         </div>
     </div>
     </>
