@@ -433,7 +433,7 @@ const UsersPage: React.FC = () => {
     {/* Style Block to Force Print Layout */}
     <style>{`
         @media print {
-            @page { size: auto; margin: 10mm; }
+            @page { size: auto; margin: 15mm; }
             
             /* RESETAR BLOQUEIOS DE SCROLL DO LAYOUT PRINCIPAL */
             html, body, #root, main {
@@ -885,7 +885,7 @@ const UsersPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-white">Usuário de Teste</p>
-                                    <p className="text-[10px] text-gray-500">Não contabilizar no Ticket Médio (ARPU)</p>
+                                    <p className="text--[10px] text-gray-500">Não contabilizar no Ticket Médio (ARPU)</p>
                                 </div>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -1050,14 +1050,14 @@ const UsersPage: React.FC = () => {
             <thead>
                 <tr className="border-b border-black">
                     <th className="py-1 pr-2 font-bold uppercase w-[20%]">Cliente / Empresa</th>
-                    <th className="py-1 pr-2 font-bold uppercase w-[15%]">Email</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[12%]">Telefone</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[18%]">Email</th>
                     <th className="py-1 pr-2 font-bold uppercase w-[10%]">Plano</th>
                     <th className="py-1 pr-2 font-bold uppercase w-[8%] text-right">R$ MRR</th>
-                    <th className="py-1 pr-2 font-bold uppercase w-[5%] text-center">Score</th>
                     <th className="py-1 pr-2 font-bold uppercase w-[8%]">Status</th>
                     <th className="py-1 pr-2 font-bold uppercase w-[8%]">Entrada</th>
-                    <th className="py-1 pr-2 font-bold uppercase w-[15%]">Objetivo Principal</th>
-                    <th className="py-1 font-bold uppercase w-[11%]">Etapa Atual</th>
+                    <th className="py-1 pr-2 font-bold uppercase w-[10%]">Último Acesso</th>
+                    <th className="py-1 font-bold uppercase w-[6%]">Etapa</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -1067,13 +1067,13 @@ const UsersPage: React.FC = () => {
                             <div className="font-bold text-black">{u.name}</div>
                             <div className="text-gray-500 truncate">{u.company}</div>
                         </td>
+                        <td className="py-1.5 pr-2 align-top text-gray-700">
+                            {u.phone || '-'}
+                        </td>
                         <td className="py-1.5 pr-2 align-top text-gray-700 truncate max-w-[150px]">{u.email}</td>
                         <td className="py-1.5 pr-2 align-top text-gray-700">{u.plan}</td>
                         <td className="py-1.5 pr-2 align-top text-right font-mono">
                             {u.mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-1.5 pr-2 align-top text-center font-mono font-bold">
-                            {u.healthScore}
                         </td>
                         <td className="py-1.5 pr-2 align-top uppercase text-[9px] font-bold">
                             {u.status}
@@ -1081,8 +1081,8 @@ const UsersPage: React.FC = () => {
                         <td className="py-1.5 pr-2 align-top">
                             {new Date(u.joinedAt).toLocaleDateString()}
                         </td>
-                        <td className="py-1.5 pr-2 align-top text-gray-600 italic truncate max-w-[150px]">
-                            {u.journey?.coreGoal || '-'}
+                        <td className="py-1.5 pr-2 align-top font-mono">
+                            {formatLastActive(u.lastActive)}
                         </td>
                         <td className="py-1.5 align-top font-medium text-gray-800">
                             {getCurrentStageText(u.journey)}
