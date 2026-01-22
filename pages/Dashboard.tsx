@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HealthScore from '../components/Dashboard/HealthScore';
 import MetricCard from '../components/Dashboard/MetricCard';
-import Card from '../components/ui/Card';
 import PageTransition from '../components/ui/PageTransition';
 import { COLORS } from '../constants';
-import { UserStatus } from '../types';
+import { User, UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
+import { useQuery, QueryFunction } from '@tanstack/react-query'; 
 import { DollarSign, Users as UsersIcon, Activity, Crown, Zap, Target, Gem, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 import RankingView from '../components/Dashboard/RankingView';
@@ -18,30 +17,27 @@ import RankingView from '../components/Dashboard/RankingView';
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'focus' | 'ranking'>('overview');
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // Get query client instance
   
-  // Real-time Event Stream Hook
   const { events, isPaused, setIsPaused, clearResolved } = useEventStream();
-  
-  // Connect to store for user data and state
-  const { users, isLoading: isUsersLoading } = useUserStore();
-  
+
   // --- DATA FETCHING WITH REACT QUERY ---
-  // Use React Query to fetch, cache, and automatically refetch user data
-  const { data: userData } = useQuery({
+  // This query function wraps the Zustand fetch action. It fetches the data,
+  // updates the store, and then returns the data to be managed by React Query.
+  const fetchAndReturnUsers: QueryFunction<User[], ['users']> = async () => {
+    await useUserStore.getState().fetchUsers(); // Updates the Zustand store
+    return useUserStore.getState().users;       // Returns the data for React Query
+  };
+
+  const { data: users = [], isLoading: isUsersLoading } = useQuery({
     queryKey: ['users'], 
-    queryFn: useUserStore.getState().fetchUsers, // Fetch using the store's method
+    queryFn: fetchAndReturnUsers,
     refetchInterval: 30000, // Refetch every 30 seconds
     refetchOnWindowFocus: true, // Refetch when the window is focused
-    initialData: users, // Use initial data from the store
   });
 
-  // Memoize the user list to prevent re-renders if data hasn't changed
-  const memoizedUsers = useMemo(() => userData || [], [userData]);
-
   // --- KPI CALCULATIONS ---
-  // Total Users: Considerar estritamente: Ativos, Novos, Risco e Fantasma (Exclui Cancelados)
-  const totalUsers = memoizedUsers.filter(u => 
+  // Total Users: Active, New, Risk, and Ghost (Excludes Churned)
+  const totalUsers = users.filter(u => 
       u.status === UserStatus.ACTIVE || 
       u.status === UserStatus.NEW || 
       u.status === UserStatus.RISK || 
@@ -49,11 +45,11 @@ const Dashboard: React.FC = () => {
   ).length;
 
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
-  const revenueUsers = memoizedUsers.filter(u => !u.isTest);
+  const revenueUsers = users.filter(u => !u.isTest);
 
   // --- JOURNEY FRICTION LOGIC (SEQUENTIAL & CORRECTED) ---
   const frictionStats = useMemo(() => {
-      const activeBase = memoizedUsers.filter(u => u.status !== UserStatus.CHURNED);
+      const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length > 0 ? activeBase.length : 1;
       
       let countActivation = 0;
@@ -147,7 +143,7 @@ const Dashboard: React.FC = () => {
               barClass: 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.8)]'
           }
       ];
-  }, [memoizedUsers]);
+  }, [users]);
 
   // Calculate MRR (exclude churned users from revenue base)
   const totalMRR = revenueUsers.reduce((acc, user) => acc + (user.status !== UserStatus.CHURNED ? user.mrr : 0), 0);
@@ -163,18 +159,19 @@ const Dashboard: React.FC = () => {
   // Get global timeframe
   const { timeframe } = useTimeframeStore();
 
-  // Fetch chart history - PASSING REAL DATA TO MOCK GENERATOR
+  // Fetch chart history
   const { data: metricsData, isLoading: isMetricsLoading } = useQuery({
-    queryKey: ['dashboardMetrics', timeframe, totalUsers, totalMRR, churnRate], // Refetch when data changes
+    queryKey: ['dashboardMetrics', timeframe, totalUsers, totalMRR, churnRate],
     queryFn: () => fetchDashboardMetrics(timeframe, {
-        users: totalUsers, // Visual chart includes all non-churned users
-        mrr: totalMRR,     // Financial chart excludes test users
-        churn: churnRate,  // Retention chart excludes test users
+        users: totalUsers,
+        mrr: totalMRR,
+        churn: churnRate,
         health: globalScore
     }),
     refetchInterval: 30000, 
   });
 
+  // Combine loading states
   const isLoading = isUsersLoading || isMetricsLoading;
 
   return (
@@ -190,7 +187,6 @@ const Dashboard: React.FC = () => {
             </p>
         </div>
         
-        {/* Tab Switcher */}
         <div className="flex p-1 bg-white/5 rounded-lg border border-white/10 scale-90 origin-right">
             <button 
                 onClick={() => setActiveTab('overview')}
@@ -218,7 +214,6 @@ const Dashboard: React.FC = () => {
       </div>
 
       {activeTab === 'overview' && (
-        /* --- OVERVIEW TAB CONTENT --- */
         <motion.div 
             key="overview"
             initial={{ opacity: 0 }}
@@ -228,7 +223,6 @@ const Dashboard: React.FC = () => {
             className="grid grid-cols-1 md:grid-cols-4 gap-6"
         >
             
-            {/* Main Metrics (Top Row) */}
             <div className="col-span-1 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard 
                     title="Total de Usuários"
@@ -265,12 +259,10 @@ const Dashboard: React.FC = () => {
                 />
             </div>
 
-            {/* Health Score Right Side */}
             <div className="col-span-1 flex justify-center w-full h-full min-h-[300px]">
                 <HealthScore onClick={() => navigate('/health')} />
             </div>
 
-            {/* --- BOTTOM ROW: JOURNEY CARDS --- */}
             <div className="col-span-1 md:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {frictionStats.map((stat) => (
                     <div 
