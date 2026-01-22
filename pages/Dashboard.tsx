@@ -284,7 +284,7 @@ const Dashboard: React.FC = () => {
                     <div 
                         key={stat.id}
                         className={`
-                            relative flex flex-col p-5 rounded-xl border transition-all duration-300 group
+                            relative flex flex-col p-5 rounded-xl border transition-all duration-300 group min-h-[180px]
                             ${stat.containerClass}
                         `}
                     >
