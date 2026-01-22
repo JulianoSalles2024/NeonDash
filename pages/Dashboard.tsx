@@ -10,7 +10,7 @@ import { UserStatus } from '../types';
 import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 import { DollarSign, Users as UsersIcon, Activity, Crown, Zap, Target, Gem, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 import RankingView from '../components/Dashboard/RankingView';
@@ -18,21 +18,30 @@ import RankingView from '../components/Dashboard/RankingView';
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'focus' | 'ranking'>('overview');
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Get query client instance
   
   // Real-time Event Stream Hook
   const { events, isPaused, setIsPaused, clearResolved } = useEventStream();
   
-  // Connect to store to get dynamic users
-  const { users, fetchUsers, isLoading: isUsersLoading } = useUserStore();
+  // Connect to store for user data and state
+  const { users, isLoading: isUsersLoading } = useUserStore();
   
-  // Fetch users from Supabase on mount
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  // --- DATA FETCHING WITH REACT QUERY ---
+  // Use React Query to fetch, cache, and automatically refetch user data
+  const { data: userData } = useQuery({
+    queryKey: ['users'], 
+    queryFn: useUserStore.getState().fetchUsers, // Fetch using the store's method
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true, // Refetch when the window is focused
+    initialData: users, // Use initial data from the store
+  });
+
+  // Memoize the user list to prevent re-renders if data hasn't changed
+  const memoizedUsers = useMemo(() => userData || [], [userData]);
 
   // --- KPI CALCULATIONS ---
   // Total Users: Considerar estritamente: Ativos, Novos, Risco e Fantasma (Exclui Cancelados)
-  const totalUsers = users.filter(u => 
+  const totalUsers = memoizedUsers.filter(u => 
       u.status === UserStatus.ACTIVE || 
       u.status === UserStatus.NEW || 
       u.status === UserStatus.RISK || 
@@ -40,11 +49,11 @@ const Dashboard: React.FC = () => {
   ).length;
 
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
-  const revenueUsers = users.filter(u => !u.isTest);
+  const revenueUsers = memoizedUsers.filter(u => !u.isTest);
 
   // --- JOURNEY FRICTION LOGIC (SEQUENTIAL & CORRECTED) ---
   const frictionStats = useMemo(() => {
-      const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
+      const activeBase = memoizedUsers.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length > 0 ? activeBase.length : 1;
       
       let countActivation = 0;
@@ -138,7 +147,7 @@ const Dashboard: React.FC = () => {
               barClass: 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.8)]'
           }
       ];
-  }, [users]);
+  }, [memoizedUsers]);
 
   // Calculate MRR (exclude churned users from revenue base)
   const totalMRR = revenueUsers.reduce((acc, user) => acc + (user.status !== UserStatus.CHURNED ? user.mrr : 0), 0);
@@ -155,7 +164,7 @@ const Dashboard: React.FC = () => {
   const { timeframe } = useTimeframeStore();
 
   // Fetch chart history - PASSING REAL DATA TO MOCK GENERATOR
-  const { data, isLoading: isMetricsLoading } = useQuery({
+  const { data: metricsData, isLoading: isMetricsLoading } = useQuery({
     queryKey: ['dashboardMetrics', timeframe, totalUsers, totalMRR, churnRate], // Refetch when data changes
     queryFn: () => fetchDashboardMetrics(timeframe, {
         users: totalUsers, // Visual chart includes all non-churned users
@@ -224,9 +233,9 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="Total de Usuários"
                     value={totalUsers}
-                    subValue={data?.activeUsers.trend ? `${data.activeUsers.trend > 0 ? '+' : ''}${data.activeUsers.trend.toFixed(3)}% vs média` : "0.0% vs média"}
-                    subColor={data?.activeUsers.trend && data.activeUsers.trend > 0 ? "text-neon-green" : "text-gray-500"}
-                    chartData={data?.activeUsers.history || []}
+                    subValue={metricsData?.activeUsers.trend ? `${metricsData.activeUsers.trend > 0 ? '+' : ''}${metricsData.activeUsers.trend.toFixed(3)}% vs média` : "0.0% vs média"}
+                    subColor={metricsData?.activeUsers.trend && metricsData.activeUsers.trend > 0 ? "text-neon-green" : "text-gray-500"}
+                    chartData={metricsData?.activeUsers.history || []}
                     chartColor={COLORS.blue}
                     isLoading={isLoading}
                     icon={<div className="relative"><span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-green opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-neon-green"></span></span><UsersIcon size={20} /></div>}
@@ -235,9 +244,9 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="RRC (MRR)"
                     value={`R$ ${(totalMRR / 1000).toFixed(1)}k`}
-                    subValue={data?.mrr.trend ? `${data.mrr.trend > 0 ? '+' : ''}${data.mrr.trend.toFixed(1)}%` : "0.0%"}
-                    subColor={data?.mrr.trend && data.mrr.trend > 0 ? "text-neon-green" : "text-gray-500"}
-                    chartData={data?.mrr.history || []}
+                    subValue={metricsData?.mrr.trend ? `${metricsData.mrr.trend > 0 ? '+' : ''}${metricsData.mrr.trend.toFixed(1)}%` : "0.0%"}
+                    subColor={metricsData?.mrr.trend && metricsData.mrr.trend > 0 ? "text-neon-green" : "text-gray-500"}
+                    chartData={metricsData?.mrr.history || []}
                     chartColor={COLORS.purple}
                     isLoading={isLoading}
                     icon={<DollarSign size={20} />}
@@ -246,9 +255,9 @@ const Dashboard: React.FC = () => {
                 <MetricCard 
                     title="Taxa de Churn"
                     value={`${churnRate.toFixed(1)}%`}
-                    subValue={data?.churn.trend ? `${data.churn.trend > 0 ? '+' : ''}${data.churn.trend.toFixed(1)}% vs anterior` : "0.0%"}
-                    subColor={data?.churn.trend && data.churn.trend > 0 ? "text-red-400" : "text-neon-green"}
-                    chartData={data?.churn.history || []}
+                    subValue={metricsData?.churn.trend ? `${metricsData.churn.trend > 0 ? '+' : ''}${metricsData.churn.trend.toFixed(1)}% vs anterior` : "0.0%"}
+                    subColor={metricsData?.churn.trend && metricsData.churn.trend > 0 ? "text-red-400" : "text-neon-green"}
+                    chartData={metricsData?.churn.history || []}
                     chartColor={COLORS.pink} 
                     isLoading={isLoading}
                     icon={<Activity size={20} />}
