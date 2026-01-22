@@ -42,7 +42,7 @@ const Dashboard: React.FC = () => {
   // Financial & Health Metrics: Exclude Test Users to avoid skewing business data
   const revenueUsers = users.filter(u => !u.isTest);
 
-  // --- JOURNEY FRICTION LOGIC (UPDATED RULES) ---
+  // --- JOURNEY FRICTION LOGIC (SEQUENTIAL & CORRECTED) ---
   const frictionStats = useMemo(() => {
       const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
       const total = activeBase.length > 0 ? activeBase.length : 1;
@@ -51,37 +51,25 @@ const Dashboard: React.FC = () => {
       let countMethod = 0;
       let countExecution = 0;
       let countValue = 0;
-      let countUpsell = 0; // <<< NOVO CONTADOR
+      let countUpsell = 0;
 
       activeBase.forEach(u => {
           const steps = u.journey?.steps || [];
-          // IDs baseados no template: 1=Ativação, 2=Método, 3=Execução, 4=Valor, 5=Upsell
-          const s1 = steps.find(s => s.id === '1')?.isCompleted;
-          const s2 = steps.find(s => s.id === '2')?.isCompleted;
-          const s3 = steps.find(s => s.id === '3')?.isCompleted;
-          const s4 = steps.find(s => s.id === '4')?.isCompleted;
-          const s5 = steps.find(s => s.id === '5')?.isCompleted; // <<< NOVO PASSO
+          const s1_completed = steps.find(s => s.id === '1')?.isCompleted;
+          const s2_completed = steps.find(s => s.id === '2')?.isCompleted;
+          const s3_completed = steps.find(s => s.id === '3')?.isCompleted;
+          const s4_completed = steps.find(s => s.id === '4')?.isCompleted;
 
-          // REGRAS DE NEGÓCIO ATUALIZADAS:
-          
-          // 1. Card Ativação: Usuários que AINDA NÃO ativaram (Passo 1 Pendente)
-          if (!s1) {
+          // SEQUENTIAL LOGIC: A user belongs to the first step they haven't completed.
+          if (!s1_completed) {
               countActivation++;
-          }
-          // 2. Card Método: Concluíram passo 1, mas não o 3
-          else if (s1 && !s3) {
+          } else if (!s2_completed) {
               countMethod++;
-          }
-          // 3. Card Execução: Concluíram passo 3, mas não o 4
-          else if (s3 && !s4) {
+          } else if (!s3_completed) {
               countExecution++;
-          }
-          // 4. Card Valor: Concluíram passo 4, mas não o 5 (Upsell)
-          else if (s4 && !s5) {
+          } else if (!s4_completed) {
               countValue++;
-          }
-          // 5. Card Upsell: Concluíram o passo 5
-          else if (s5) {
+          } else { // Completed step 4, they are now in the "Upsell" category
               countUpsell++;
           }
       });
@@ -90,8 +78,7 @@ const Dashboard: React.FC = () => {
           { 
               id: 'activation', 
               label: 'Ativação', 
-              insight: 'Pré-Ativação', 
-              desc: 'Usuários que ainda não concluíram o onboarding inicial.',
+              desc: 'Usuários que precisam concluir a ativação inicial.',
               count: countActivation, 
               percent: (countActivation / total) * 100,
               color: 'text-red-400', 
@@ -103,8 +90,7 @@ const Dashboard: React.FC = () => {
           { 
               id: 'method', 
               label: 'Método', 
-              insight: 'Setup em Andamento', 
-              desc: 'Estruturando o método antes da execução assistida.',
+              desc: 'Concluíram a ativação e agora estão configurando o método.',
               count: countMethod, 
               percent: (countMethod / total) * 100,
               color: 'text-orange-400', 
@@ -116,8 +102,7 @@ const Dashboard: React.FC = () => {
           { 
               id: 'execution', 
               label: 'Execução', 
-              insight: 'Execução Assistida', 
-              desc: 'Em operação com suporte. Rumo ao primeiro valor.',
+              desc: 'Método configurado, prontos para a execução assistida.',
               count: countExecution, 
               percent: (countExecution / total) * 100,
               color: 'text-blue-400', 
@@ -129,8 +114,7 @@ const Dashboard: React.FC = () => {
           { 
               id: 'value', 
               label: 'Valor', 
-              insight: 'Valor Gerado', 
-              desc: 'Sucesso comprovado. Candidatos a expansão.',
+              desc: 'Execução em andamento, focados em gerar o primeiro valor.',
               count: countValue, 
               percent: (countValue / total) * 100,
               color: 'text-neon-green', 
@@ -140,11 +124,10 @@ const Dashboard: React.FC = () => {
               accentClass: 'bg-neon-green',
               barClass: 'bg-neon-green shadow-[0_0_15px_rgba(52,255,176,0.8)]'
           },
-          { // <<< NOVO CARD DE UPSELL
+          { 
               id: 'upsell', 
               label: 'Upsell', 
-              insight: 'Expansão', 
-              desc: 'Clientes que atingiram o sucesso e expandiram o valor.',
+              desc: 'Geraram valor e estão prontos para expansão (ou já expandiram).',
               count: countUpsell, 
               percent: (countUpsell / total) * 100,
               color: 'text-yellow-400', 
