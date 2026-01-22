@@ -11,7 +11,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimeframeStore } from '../store/useTimeframeStore';
 import { fetchDashboardMetrics } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Users as UsersIcon, Activity, AlertTriangle, Zap, Target, Gem, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
+import { DollarSign, Users as UsersIcon, Activity, Crown, Zap, Target, Gem, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useEventStream } from '../hooks/useEventStream';
 import RankingView from '../components/Dashboard/RankingView';
 
@@ -45,12 +45,13 @@ const Dashboard: React.FC = () => {
   // --- JOURNEY FRICTION LOGIC (UPDATED RULES) ---
   const frictionStats = useMemo(() => {
       const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
-      const total = activeBase.length || 1;
+      const total = activeBase.length > 0 ? activeBase.length : 1;
       
       let countActivation = 0;
       let countMethod = 0;
       let countExecution = 0;
       let countValue = 0;
+      let countUpsell = 0; // <<< NOVO CONTADOR
 
       activeBase.forEach(u => {
           const steps = u.journey?.steps || [];
@@ -59,6 +60,7 @@ const Dashboard: React.FC = () => {
           const s2 = steps.find(s => s.id === '2')?.isCompleted;
           const s3 = steps.find(s => s.id === '3')?.isCompleted;
           const s4 = steps.find(s => s.id === '4')?.isCompleted;
+          const s5 = steps.find(s => s.id === '5')?.isCompleted; // <<< NOVO PASSO
 
           // REGRAS DE NEGÓCIO ATUALIZADAS:
           
@@ -66,22 +68,22 @@ const Dashboard: React.FC = () => {
           if (!s1) {
               countActivation++;
           }
-          // 2. Card Método: Considerar quando "Estruturação do Método" (Passo 2) estiver MARCADO
-          // (E ainda não marcou execução, para não duplicar)
-          else if (s2 && !s3) {
+          // 2. Card Método: Concluíram passo 1, mas não o 3
+          else if (s1 && !s3) {
               countMethod++;
           }
-          // 3. Card Execução: Considerar quando "Execução Assistida" (Passo 3) estiver MARCADO
-          // (E ainda não marcou valor)
+          // 3. Card Execução: Concluíram passo 3, mas não o 4
           else if (s3 && !s4) {
               countExecution++;
           }
-          // 4. Card Valor: Considerar quando "Valor Gerado" (Passo 4) estiver MARCADO
-          else if (s4) {
+          // 4. Card Valor: Concluíram passo 4, mas não o 5 (Upsell)
+          else if (s4 && !s5) {
               countValue++;
           }
-          // Nota: Usuários que tem S1(Ativação) mas NÃO S2(Método) não caem em nenhum card principal
-          // pois a regra do Método exige estar MARCADO. Eles são o "Gap" de setup.
+          // 5. Card Upsell: Concluíram o passo 5
+          else if (s5) {
+              countUpsell++;
+          }
       });
 
       return [
@@ -94,7 +96,6 @@ const Dashboard: React.FC = () => {
               percent: (countActivation / total) * 100,
               color: 'text-red-400', 
               icon: AlertCircle,
-              // Estilos Neon/Mission
               containerClass: 'bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 hover:border-red-500/60 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]',
               accentClass: 'bg-red-500',
               barClass: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'
@@ -102,13 +103,12 @@ const Dashboard: React.FC = () => {
           { 
               id: 'method', 
               label: 'Método', 
-              insight: 'Método Estruturado', 
-              desc: 'Setup metodológico concluído. Preparando execução.',
+              insight: 'Setup em Andamento', 
+              desc: 'Estruturando o método antes da execução assistida.',
               count: countMethod, 
               percent: (countMethod / total) * 100,
               color: 'text-orange-400', 
               icon: CheckCircle,
-              // Estilos Neon/Mission
               containerClass: 'bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/30 hover:border-orange-500/60 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]',
               accentClass: 'bg-orange-500',
               barClass: 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]'
@@ -122,14 +122,13 @@ const Dashboard: React.FC = () => {
               percent: (countExecution / total) * 100,
               color: 'text-blue-400', 
               icon: Zap,
-              // Estilos Neon/Mission
               containerClass: 'bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/30 hover:border-blue-500/60 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',
               accentClass: 'bg-blue-500',
               barClass: 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]'
           },
           { 
               id: 'value', 
-              label: 'Valor & Upsell', 
+              label: 'Valor', 
               insight: 'Valor Gerado', 
               desc: 'Sucesso comprovado. Candidatos a expansão.',
               count: countValue, 
@@ -137,27 +136,25 @@ const Dashboard: React.FC = () => {
               color: 'text-neon-green', 
               icon: Gem,
               special: true,
-              // Estilos Neon/Mission
               containerClass: 'bg-gradient-to-br from-neon-green/10 to-transparent border-neon-green/30 hover:border-neon-green/60 hover:shadow-[0_0_25px_rgba(52,255,176,0.2)]',
               accentClass: 'bg-neon-green',
               barClass: 'bg-neon-green shadow-[0_0_15px_rgba(52,255,176,0.8)]'
+          },
+          { // <<< NOVO CARD DE UPSELL
+              id: 'upsell', 
+              label: 'Upsell', 
+              insight: 'Expansão', 
+              desc: 'Clientes que atingiram o sucesso e expandiram o valor.',
+              count: countUpsell, 
+              percent: (countUpsell / total) * 100,
+              color: 'text-yellow-400', 
+              icon: Crown,
+              special: true,
+              containerClass: 'bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/30 hover:border-yellow-500/60 hover:shadow-[0_0_25px_rgba(234,179,8,0.2)]',
+              accentClass: 'bg-yellow-500',
+              barClass: 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.8)]'
           }
       ];
-  }, [users]);
-
-  const journeyStats = useMemo(() => {
-      const activeBase = users.filter(u => u.status !== UserStatus.CHURNED);
-      const total = activeBase.length || 1;
-      
-      const achieved = activeBase.filter(u => u.journey?.status === 'achieved').length;
-      const inProgress = activeBase.filter(u => u.journey?.status === 'in_progress').length;
-      const notStarted = activeBase.filter(u => !u.journey || u.journey.status === 'not_started').length;
-
-      return {
-          achieved: { count: achieved, percent: (achieved/total)*100 },
-          inProgress: { count: inProgress, percent: (inProgress/total)*100 },
-          notStarted: { count: notStarted, percent: (notStarted/total)*100 }
-      };
   }, [users]);
 
   // Calculate MRR (exclude churned users from revenue base)
@@ -281,57 +278,8 @@ const Dashboard: React.FC = () => {
                 <HealthScore onClick={() => navigate('/health')} />
             </div>
 
-            {/* --- BOTTOM ROW --- */}
-            
-            {/* Journey Distribution (Left) */}
-            <Card className="col-span-1 border-neon-cyan/20 bg-gradient-to-br from-neon-cyan/5 to-transparent flex flex-col justify-center p-6 gap-6">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Target size={20} className="text-neon-cyan" /> Sucesso do Cliente
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-1">Status global.</p>
-                    </div>
-                </div>
-
-                <div className="space-y-5">
-                    {/* Achieved */}
-                    <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span className="text-white font-medium">Resultado Atingido</span>
-                            <span className="text-neon-green font-bold text-base">{journeyStats.achieved.count}</span>
-                        </div>
-                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-green" style={{ width: `${journeyStats.achieved.percent}%` }}></div>
-                        </div>
-                    </div>
-
-                    {/* In Progress */}
-                    <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span className="text-white font-medium">Em Jornada</span>
-                            <span className="text-neon-blue font-bold text-base">{journeyStats.inProgress.count}</span>
-                        </div>
-                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-neon-blue" style={{ width: `${journeyStats.inProgress.percent}%` }}></div>
-                        </div>
-                    </div>
-
-                    {/* Not Started */}
-                    <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span className="text-white font-medium">Setup Pendente</span>
-                            <span className="text-gray-400 font-bold text-base">{journeyStats.notStarted.count}</span>
-                        </div>
-                        <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-gray-600" style={{ width: `${journeyStats.notStarted.percent}%` }}></div>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Right Side: Friction Cards Grid */}
-            <div className="col-span-1 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* --- BOTTOM ROW: JOURNEY CARDS --- */}
+            <div className="col-span-1 md:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {frictionStats.map((stat) => (
                     <div 
                         key={stat.id}
